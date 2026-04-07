@@ -3,503 +3,427 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PriceAction Pro - 起涨点捕捉器</title>
+    <title>PriceAction Pro - AI 股票分析系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            min-height: 100vh;
-            color: #fff;
-        }
-        
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-        
-        header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-        
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            background: linear-gradient(90deg, #00d9ff, #00ff88);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        .subtitle {
-            color: #8892b0;
-            font-size: 1.1rem;
-        }
-        
-        .search-box {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 16px;
-            padding: 30px;
-            margin-bottom: 30px;
-        }
-        
-        .input-group {
-            display: flex;
-            gap: 10px;
-        }
-        
-        input[type="text"] {
-            flex: 1;
-            padding: 15px 20px;
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 10px;
-            background: rgba(255,255,255,0.05);
-            color: #fff;
-            font-size: 1.1rem;
-        }
-        
-        input[type="text"]::placeholder {
-            color: #8892b0;
-        }
-        
-        button {
-            padding: 15px 30px;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(90deg, #00d9ff, #00ff88);
-            color: #1a1a2e;
-        }
-        
-        .btn-primary:hover {
+        .card-hover:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(0,217,255,0.3);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
-        
-        .btn-primary:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .credits {
-            text-align: center;
-            margin-top: 15px;
-            color: #8892b0;
-            font-size: 0.9rem;
-        }
-        
-        .credits span {
-            color: #00ff88;
-            font-weight: 600;
-        }
-        
-        .result-box {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 16px;
-            padding: 30px;
-            display: none;
-        }
-        
-        .result-box.show {
-            display: block;
-        }
-        
-        .stock-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .stock-symbol {
-            font-size: 1.5rem;
-            font-weight: 700;
-        }
-        
-        .score {
-            background: linear-gradient(90deg, #00d9ff, #00ff88);
-            color: #1a1a2e;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-weight: 700;
-        }
-        
-        .indicator-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        
-        .indicator-table td {
-            padding: 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        
-        .indicator-name {
-            color: #8892b0;
-            width: 40%;
-        }
-        
-        .indicator-value {
-            font-weight: 600;
-        }
-        
-        .indicator-color {
-            font-size: 1.2rem;
-        }
-        
-        .recommendation {
-            background: rgba(0,217,255,0.1);
-            border: 1px solid rgba(0,217,255,0.3);
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 20px;
-        }
-        
-        .recommendation.success {
-            background: rgba(0,255,136,0.1);
-            border-color: rgba(0,255,136,0.3);
-        }
-        
-        .recommendation.warning {
-            background: rgba(255,165,0,0.1);
-            border-color: rgba(255,165,0,0.3);
-        }
-        
-        .recommendation.danger {
-            background: rgba(255,0,0,0.1);
-            border-color: rgba(255,0,0,0.3);
-        }
-        
-        .comment {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            color: #8892b0;
-        }
-        
-        .payment-tip {
-            text-align: center;
-            margin-top: 20px;
-            padding: 15px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            font-size: 0.9rem;
-            color: #8892b0;
-        }
-        
-        .payment-tip a {
-            color: #00d9ff;
-            text-decoration: none;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            display: none;
-        }
-        
-        .loading.show {
-            display: block;
-        }
-        
-        .spinner {
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
             width: 40px;
             height: 40px;
-            border: 3px solid rgba(255,255,255,0.1);
-            border-top-color: #00d9ff;
-            border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
         }
-        
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
-        
-        .popular-stocks {
-            margin-top: 30px;
-        }
-        
-        .popular-stocks h3 {
-            color: #8892b0;
-            font-size: 0.9rem;
-            margin-bottom: 15px;
-        }
-        
-        .stock-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        
-        .stock-tag {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            padding: 8px 16px;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .stock-tag:hover {
-            background: rgba(0,217,255,0.1);
-            border-color: rgba(0,217,255,0.3);
-        }
-        
-        .error-box {
-            background: rgba(255,0,0,0.1);
-            border: 1px solid rgba(255,0,0,0.3);
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 20px;
-            display: none;
-        }
-        
-        .error-box.show {
-            display: block;
-        }
+        .signal-positive { color: #10b981; }
+        .signal-negative { color: #ef4444; }
+        .signal-neutral { color: #6b7280; }
     </style>
 </head>
-<body>
-    <div class="container">
-        <header>
-            <h1>🎯 PriceAction Pro</h1>
-            <p class="subtitle">起涨点捕捉器 · 买在早期 · 只做强势</p>
-            <p style="color: #ff6b6b; font-size: 0.85rem; margin-top: 10px;">
-                ⚠️ 仅限国内 A 股/港股 · 不面向美股/币圈
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-4 py-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold">PriceAction Pro</h1>
+                    <p class="text-purple-200 mt-1">AI 股票分析系统 - 秋生裸 K 策略</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-sm text-purple-200">实时分析</div>
+                    <div class="text-2xl font-bold">A 股 / 港股</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Search Section -->
+        <div class="max-w-4xl mx-auto mb-8">
+            <div class="bg-white rounded-xl shadow-lg p-6 card-hover transition-all">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">🔍 股票分析</h2>
+                <div class="flex gap-4">
+                    <input 
+                        type="text" 
+                        id="stockCode" 
+                        placeholder="输入股票代码，如：600519 (贵州茅台)"
+                        class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        value="600519"
+                    />
+                    <button 
+                        onclick="analyzeStock()"
+                        id="analyzeBtn"
+                        class="gradient-bg text-white px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+                    >
+                        <span>开始分析</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="mt-4 flex gap-2 flex-wrap">
+                    <span class="text-sm text-gray-500">热门:</span>
+                    <button onclick="setStock('600519')" class="px-3 py-1 bg-purple-100 text-purple-600 rounded-full text-sm hover:bg-purple-200">贵州茅台</button>
+                    <button onclick="setStock('000858')" class="px-3 py-1 bg-purple-100 text-purple-600 rounded-full text-sm hover:bg-purple-200">五粮液</button>
+                    <button onclick="setStock('300750')" class="px-3 py-1 bg-purple-100 text-purple-600 rounded-full text-sm hover:bg-purple-200">宁德时代</button>
+                    <button onclick="setStock('002594')" class="px-3 py-1 bg-purple-100 text-purple-600 rounded-full text-sm hover:bg-purple-200">比亚迪</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="hidden max-w-4xl mx-auto mb-8">
+            <div class="bg-white rounded-xl shadow-lg p-12 text-center">
+                <div class="loading-spinner mx-auto mb-4"></div>
+                <p class="text-gray-600 text-lg">正在分析股票数据...</p>
+                <p class="text-gray-400 text-sm mt-2">基于秋生裸 K 策略 v3.1</p>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div id="results" class="hidden max-w-6xl mx-auto">
+            <!-- Overall Score -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6 card-hover transition-all">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800" id="resultTitle">分析结果</h2>
+                    <span id="recommendation" class="px-6 py-2 rounded-full text-lg font-bold"></span>
+                </div>
+                <div class="flex items-center gap-6">
+                    <div class="text-center">
+                        <div class="text-5xl font-bold gradient-bg text-transparent bg-clip-text" id="totalScore">0</div>
+                        <div class="text-gray-500 mt-1">综合评分</div>
+                    </div>
+                    <div class="flex-1">
+                        <div class="h-4 bg-gray-200 rounded-full overflow-hidden">
+                            <div id="scoreBar" class="h-full gradient-bg transition-all duration-1000" style="width: 0%"></div>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-2" id="comment"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Indicators Grid -->
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                <!-- Trend -->
+                <div class="bg-white rounded-xl shadow-lg p-6 card-hover transition-all">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <span class="text-2xl">📈</span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800">大周期趋势</h3>
+                            <p class="text-xs text-gray-500">日线级别</p>
+                        </div>
+                    </div>
+                    <div id="trendIndicator" class="text-2xl font-bold"></div>
+                </div>
+
+                <!-- Duration -->
+                <div class="bg-white rounded-xl shadow-lg p-6 card-hover transition-all">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <span class="text-2xl">⏱️</span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800">趋势持续</h3>
+                            <p class="text-xs text-gray-500">起涨天数</p>
+                        </div>
+                    </div>
+                    <div id="durationIndicator" class="text-2xl font-bold"></div>
+                </div>
+
+                <!-- Market Compare -->
+                <div class="bg-white rounded-xl shadow-lg p-6 card-hover transition-all">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                            <span class="text-2xl">🆚</span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800">大盘对比</h3>
+                            <p class="text-xs text-gray-500">相对强度</p>
+                        </div>
+                    </div>
+                    <div id="marketIndicator" class="text-2xl font-bold"></div>
+                </div>
+
+                <!-- Main Force -->
+                <div class="bg-white rounded-xl shadow-lg p-6 card-hover transition-all">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                            <span class="text-2xl">💰</span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800">主力量能</h3>
+                            <p class="text-xs text-gray-500">资金流向</p>
+                        </div>
+                    </div>
+                    <div id="flowIndicator" class="text-2xl font-bold"></div>
+                </div>
+
+                <!-- Amplitude -->
+                <div class="bg-white rounded-xl shadow-lg p-6 card-hover transition-all">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                            <span class="text-2xl">📊</span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800">10 日振幅</h3>
+                            <p class="text-xs text-gray-500">弹性评估</p>
+                        </div>
+                    </div>
+                    <div id="amplitudeIndicator" class="text-2xl font-bold"></div>
+                </div>
+
+                <!-- Signal -->
+                <div class="bg-white rounded-xl shadow-lg p-6 card-hover transition-all">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                            <span class="text-2xl">🎯</span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800">当前信号</h3>
+                            <p class="text-xs text-gray-500">15 分钟线</p>
+                        </div>
+                    </div>
+                    <div id="signalIndicator" class="text-2xl font-bold"></div>
+                </div>
+            </div>
+
+            <!-- Score Details -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">📋 评分详情</h3>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">趋势持续</span>
+                        <div class="flex items-center gap-3">
+                            <div class="w-48 h-3 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="trendBar" class="h-full bg-purple-500 transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <span id="trendScore" class="font-bold text-gray-800 w-8">0</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">大周期</span>
+                        <div class="flex items-center gap-3">
+                            <div class="w-48 h-3 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="macroBar" class="h-full bg-blue-500 transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <span id="macroScore" class="font-bold text-gray-800 w-8">0</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">大盘对比</span>
+                        <div class="flex items-center gap-3">
+                            <div class="w-48 h-3 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="marketBar" class="h-full bg-green-500 transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <span id="marketScore" class="font-bold text-gray-800 w-8">0</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">主力量能</span>
+                        <div class="flex items-center gap-3">
+                            <div class="w-48 h-3 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="flowBar" class="h-full bg-red-500 transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <span id="flowScore" class="font-bold text-gray-800 w-8">0</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">10 日振幅</span>
+                        <div class="flex items-center gap-3">
+                            <div class="w-48 h-3 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="amplitudeBar" class="h-full bg-yellow-500 transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <span id="amplitudeScore" class="font-bold text-gray-800 w-8">0</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">当前信号</span>
+                        <div class="flex items-center gap-3">
+                            <div class="w-48 h-3 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="signalBar" class="h-full bg-indigo-500 transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <span id="signalScore" class="font-bold text-gray-800 w-8">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Strategy Info -->
+            <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-100">
+                <h3 class="text-lg font-bold text-gray-800 mb-3">💡 策略说明</h3>
+                <div class="grid md:grid-cols-2 gap-4 text-sm text-gray-600">
+                    <div>
+                        <strong class="text-gray-800">策略来源:</strong> 秋生 Trader (@Hoyooyoo)<br>
+                        <strong class="text-gray-800">策略版本:</strong> v3.1 (放宽版)<br>
+                        <strong class="text-gray-800">适用市场:</strong> A 股 / 港股
+                    </div>
+                    <div>
+                        <strong class="text-gray-800">核心逻辑:</strong> 买在起涨点早期 (1-3 天)<br>
+                        <strong class="text-gray-800">评分标准:</strong> ≥70 分进入观察池<br>
+                        <strong class="text-gray-800">数据源:</strong> Baostock (免费)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error -->
+        <div id="error" class="hidden max-w-4xl mx-auto mb-8">
+            <div class="bg-red-50 border border-red-200 rounded-xl p-6">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">❌</span>
+                    <div>
+                        <h3 class="font-bold text-red-800">分析失败</h3>
+                        <p id="errorMessage" class="text-red-600"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white mt-12 py-8">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-gray-400">PriceAction Pro - AI 股票分析系统</p>
+            <p class="text-gray-500 text-sm mt-2">
+                基于秋生裸 K 策略 v3.1 | 数据仅供参考，不构成投资建议
             </p>
-        </header>
-        
-        <div class="search-box">
-            <div class="input-group">
-                <input 
-                    type="text" 
-                    id="symbolInput" 
-                    placeholder="输入股票代码 (如 600519 或 600519.ss / 000858.sz)"
-                    autocomplete="off"
-                >
-                <button class="btn-primary" id="analyzeBtn" onclick="analyzeStock()">
-                    分析
-                </button>
-            </div>
-            <div class="credits">
-                剩余积分：<span id="creditsDisplay">3</span> 
-                <span style="color: #8892b0; font-size: 0.8rem;">(新用户送 3 次 | 每日 +1 次 | 1 USDT = 5 次)</span>
-            </div>
-            <div style="margin-top: 10px; padding: 10px; background: rgba(255,107,107,0.1); border-radius: 8px; font-size: 0.8rem; color: #ff6b6b;">
-                <strong>⚠️ 适用范围：</strong>仅支持国内 A 股 (600/000/002/300 开头) + 港股 (.HK)<br>
-                不支持美股、币圈、期货。策略基于秋生 Trader(@Hoyooyoo) 价格行为理论。
+            <div class="mt-4 flex justify-center gap-4 text-sm text-gray-500">
+                <a href="https://github.com/cgh19901113-ui/priceaction-pro" class="hover:text-white">GitHub</a>
+                <span>|</span>
+                <span>Powered by Vercel</span>
             </div>
         </div>
-        
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>正在分析中...</p>
-        </div>
-        
-        <div class="error-box" id="errorBox"></div>
-        
-        <div class="result-box" id="resultBox">
-            <div class="stock-header">
-                <div class="stock-symbol" id="resultSymbol">--</div>
-                <div class="score" id="resultScore">--分</div>
-            </div>
-            
-            <table class="indicator-table">
-                <tr>
-                    <td class="indicator-name">大周期 (D)</td>
-                    <td class="indicator-value" id="indicator1">--</td>
-                    <td class="indicator-color" id="color1">--</td>
-                </tr>
-                <tr>
-                    <td class="indicator-name">趋势持续</td>
-                    <td class="indicator-value" id="indicator2">--</td>
-                    <td class="indicator-color" id="color2">--</td>
-                </tr>
-                <tr>
-                    <td class="indicator-name">大盘对比</td>
-                    <td class="indicator-value" id="indicator3">--</td>
-                    <td class="indicator-color" id="color3">--</td>
-                </tr>
-                <tr>
-                    <td class="indicator-name">主力量能 (1D)</td>
-                    <td class="indicator-value" id="indicator4">--</td>
-                    <td class="indicator-color" id="color4">--</td>
-                </tr>
-                <tr>
-                    <td class="indicator-name">10 日振幅</td>
-                    <td class="indicator-value" id="indicator5">--</td>
-                    <td class="indicator-color" id="color5">--</td>
-                </tr>
-                <tr>
-                    <td class="indicator-name">当前信号</td>
-                    <td class="indicator-value" id="indicator6">--</td>
-                    <td class="indicator-color" id="color6">--</td>
-                </tr>
-            </table>
-            
-            <div class="recommendation" id="recommendationBox">
-                <strong>建议：</strong><span id="recommendationText">--</span>
-            </div>
-            
-            <div class="comment">
-                <strong>裸 K 简评：</strong><span id="commentText">--</span>
-            </div>
-        </div>
-        
-        <div class="payment-tip">
-            💡 积分不足？<a href="#" onclick="showPayment()">充值 1 USDT 得 5 次分析</a>
-        </div>
-        
-        <div class="popular-stocks">
-            <h3>🔥 热门股票</h3>
-            <div class="stock-tags" id="popularStocks">
-                <span class="stock-tag" onclick="fillSymbol('600519.ss')">贵州茅台</span>
-                <span class="stock-tag" onclick="fillSymbol('000858.sz')">五粮液</span>
-                <span class="stock-tag" onclick="fillSymbol('300750.sz')">宁德时代</span>
-                <span class="stock-tag" onclick="fillSymbol('000333.sz')">美的集团</span>
-                <span class="stock-tag" onclick="fillSymbol('002594.sz')">比亚迪</span>
-            </div>
-        </div>
-    </div>
-    
+    </footer>
+
     <script>
-        const API_BASE = 'http://localhost:8000';
-        
-        // 填充股票代码
-        function fillSymbol(symbol) {
-            document.getElementById('symbolInput').value = symbol;
+        const API_BASE = 'https://priceaction-pro.vercel.app';
+
+        function setStock(code) {
+            document.getElementById('stockCode').value = code;
         }
-        
-        // 显示支付
-        function showPayment() {
-            alert('支付功能即将上线！\n\n现在添加 Telegram @aresdawn 获取内测资格');
-        }
-        
-        // 分析股票
+
         async function analyzeStock() {
-            const symbol = document.getElementById('symbolInput').value.trim();
-            
-            if (!symbol) {
-                showError('请输入股票代码');
+            const code = document.getElementById('stockCode').value.trim();
+            if (!code) {
+                alert('请输入股票代码');
                 return;
             }
-            
-            // UI 状态
+
+            // Show loading
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('results').classList.add('hidden');
+            document.getElementById('error').classList.add('hidden');
             document.getElementById('analyzeBtn').disabled = true;
-            document.getElementById('loading').classList.add('show');
-            document.getElementById('resultBox').classList.remove('show');
-            document.getElementById('errorBox').classList.remove('show');
-            
+
             try {
-                const response = await fetch(`${API_BASE}/api/analyze`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ symbol }),
-                });
-                
+                const response = await fetch(`${API_BASE}/api/analyze?symbol=${code}`);
                 const data = await response.json();
-                
+
                 if (!response.ok) {
                     throw new Error(data.detail || '分析失败');
                 }
-                
-                // 显示结果
-                displayResult(data);
-                
-                // 更新积分
-                document.getElementById('creditsDisplay').textContent = data.remaining_credits;
-                
+
+                displayResults(data, code);
             } catch (error) {
                 showError(error.message);
             } finally {
+                document.getElementById('loading').classList.add('hidden');
                 document.getElementById('analyzeBtn').disabled = false;
-                document.getElementById('loading').classList.remove('show');
             }
         }
-        
-        // 显示结果
-        function displayResult(data) {
-            const analysis = data.analysis;
-            
-            document.getElementById('resultSymbol').textContent = analysis.symbol;
-            document.getElementById('resultScore').textContent = analysis.score + '分';
-            
-            // 指标
-            const indicators = analysis.indicators;
-            document.getElementById('indicator1').textContent = indicators['大周期'];
-            document.getElementById('color1').textContent = indicators['大周期_颜色'];
-            
-            document.getElementById('indicator2').textContent = indicators['趋势持续'];
-            document.getElementById('color2').textContent = indicators['趋势持续_颜色'];
-            
-            document.getElementById('indicator3').textContent = indicators['大盘对比'];
-            document.getElementById('color3').textContent = indicators['大盘对比_颜色'];
-            
-            document.getElementById('indicator4').textContent = indicators['主力量能'];
-            document.getElementById('color4').textContent = indicators['主力量能_颜色'];
-            
-            document.getElementById('indicator5').textContent = indicators['10 日振幅'];
-            document.getElementById('color5').textContent = indicators['10 日振幅_颜色'];
-            
-            document.getElementById('indicator6').textContent = indicators['当前信号'];
-            document.getElementById('color6').textContent = indicators['当前信号_颜色'];
-            
-            // 建议
-            const recBox = document.getElementById('recommendationBox');
-            recBox.className = 'recommendation';
-            
-            if (analysis.recommendation.includes('✅')) {
-                recBox.classList.add('success');
-            } else if (analysis.recommendation.includes('⚠️')) {
-                recBox.classList.add('warning');
-            } else if (analysis.recommendation.includes('❌')) {
-                recBox.classList.add('danger');
+
+        function displayResults(data, code) {
+            const results = document.getElementById('results');
+            results.classList.remove('hidden');
+
+            // Title
+            document.getElementById('resultTitle').textContent = `${code} 分析结果`;
+
+            // Recommendation
+            const rec = document.getElementById('recommendation');
+            rec.textContent = data.analysis?.recommendation || '观望';
+            if (data.analysis?.recommendation?.includes('✅')) {
+                rec.className = 'px-6 py-2 rounded-full text-lg font-bold bg-green-100 text-green-700';
+            } else if (data.analysis?.recommendation?.includes('❌')) {
+                rec.className = 'px-6 py-2 rounded-full text-lg font-bold bg-red-100 text-red-700';
+            } else {
+                rec.className = 'px-6 py-2 rounded-full text-lg font-bold bg-gray-100 text-gray-700';
             }
+
+            // Score
+            const score = data.analysis?.score || 0;
+            document.getElementById('totalScore').textContent = score;
+            setTimeout(() => {
+                document.getElementById('scoreBar').style.width = `${score}%`;
+            }, 100);
+            document.getElementById('comment').textContent = data.analysis?.comment || '';
+
+            // Indicators
+            const indicators = data.analysis?.indicators || {};
             
-            document.getElementById('recommendationText').textContent = analysis.recommendation;
-            document.getElementById('commentText').textContent = analysis.comment;
+            document.getElementById('trendIndicator').innerHTML = 
+                `${indicators['大周期_颜色'] || ''} ${indicators['大周期'] || '数据不足'}`;
             
-            document.getElementById('resultBox').classList.add('show');
+            document.getElementById('durationIndicator').innerHTML = 
+                `${indicators['趋势持续_颜色'] || ''} ${indicators['趋势持续'] || '数据不足'}`;
+            
+            document.getElementById('marketIndicator').innerHTML = 
+                `${indicators['大盘对比_颜色'] || ''} ${indicators['大盘对比'] || '数据不足'}`;
+            
+            document.getElementById('flowIndicator').innerHTML = 
+                `${indicators['主力量能_颜色'] || ''} ${indicators['主力量能'] || '数据不足'}`;
+            
+            document.getElementById('amplitudeIndicator').innerHTML = 
+                `${indicators['10 日振幅_颜色'] || ''} ${indicators['10 日振幅'] || '数据不足'}`;
+            
+            document.getElementById('signalIndicator').innerHTML = 
+                `${indicators['当前信号_颜色'] || ''} ${indicators['当前信号'] || '数据不足'}`;
+
+            // Score details (mock data for now)
+            updateScoreBars(data.analysis?.score_details || {});
         }
-        
-        // 显示错误
+
+        function updateScoreBars(details) {
+            // Mock scores based on total score
+            const total = parseInt(document.getElementById('totalScore').textContent) || 0;
+            const perItem = Math.round(total / 6);
+
+            setBar('trend', perItem);
+            setBar('macro', perItem);
+            setBar('market', perItem);
+            setBar('flow', perItem);
+            setBar('amplitude', perItem);
+            setBar('signal', perItem);
+        }
+
+        function setBar(name, value) {
+            document.getElementById(`${name}Bar`).style.width = `${value * 10}%`;
+            document.getElementById(`${name}Score`).textContent = value;
+        }
+
         function showError(message) {
-            const errorBox = document.getElementById('errorBox');
-            errorBox.textContent = '❌ ' + message;
-            errorBox.classList.add('show');
-            
-            if (message.includes('积分不足')) {
-                errorBox.innerHTML += '<br><br>💰 <a href="#" onclick="showPayment()" style="color: #00d9ff;">立即充值 →</a>';
-            }
+            document.getElementById('error').classList.remove('hidden');
+            document.getElementById('errorMessage').textContent = message;
         }
-        
-        // 回车键分析
-        document.getElementById('symbolInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                analyzeStock();
-            }
-        });
+
+        // Auto-analyze on load for demo
+        window.onload = () => {
+            // analyzeStock();
+        };
     </script>
 </body>
 </html>
