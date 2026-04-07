@@ -3,11 +3,10 @@
   "builds": [
     {
       "src": "backend/main.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "frontend/index.html",
-      "use": "@vercel/static"
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "50mb"
+      }
     }
   ],
   "routes": [
@@ -17,14 +16,7 @@
     },
     {
       "src": "/",
-      "dest": "frontend/index.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "frontend/$1"
+      "dest": "/api/health"
     }
-  ],
-  "env": {
-    "PYTHON_VERSION": "3.10"
-  }
+  ]
 }
