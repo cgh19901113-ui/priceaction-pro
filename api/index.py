@@ -1,22 +1,34 @@
 """
 Vercel Serverless API - PriceAction Pro
 AI 股票分析系统 - 裸 K 策略 v3.1
+
+Vercel Python Runtime Requirements:
+- Must export 'app' or 'application' at module level
+- See: https://vercel.com/docs/runtimes#official-runtimes/python
 """
 
 import json
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlparse
 import akshare as ak
 
 
-def handler(request):
+# Vercel requires 'app' at module level
+app = None
+
+
+def handler(environ, start_response):
     """
-    Vercel Python Serverless Function
+    WSGI Handler for Vercel Python Runtime
     
-    For more information, visit:
-    https://vercel.com/docs/runtimes#official-runtimes/python
+    Args:
+        environ: WSGI environment dict
+        start_response: WSGI start_response callable
+    
+    Returns:
+        Response body iterator
     """
     
     headers = {
@@ -27,63 +39,53 @@ def handler(request):
     }
     
     # Handle OPTIONS (CORS preflight)
-    if request.method == 'OPTIONS':
-        return {'statusCode': 200, 'headers': headers, 'body': ''}
+    if environ.get('REQUEST_METHOD') == 'OPTIONS':
+        start_response('200 OK', list(headers.items()))
+        return [b'']
     
-    # Parse query parameters from URL
-    from urllib.parse import urlparse, parse_qs
-    
-    # Get query params
+    # Parse query parameters
     try:
-        parsed_url = urlparse(request.url)
-        query_params = parse_qs(parsed_url.query)
+        query_string = environ.get('QUERY_STRING', '')
+        query_params = parse_qs(query_string)
         symbol_list = query_params.get('symbol', [])
         symbol = symbol_list[0] if symbol_list else ''
     except Exception as e:
-        return {
-            'statusCode': 500,
-            'headers': headers,
-            'body': json.dumps({'error': f'Parse error: {str(e)}'})
-        }
+        response = json.dumps({'error': f'Parse error: {str(e)}'})
+        start_response('500 Internal Server Error', list(headers.items()))
+        return [response.encode('utf-8')]
     
     if not symbol:
-        return {
-            'statusCode': 400,
-            'headers': headers,
-            'body': json.dumps({'error': '缺少股票代码 (示例：600519 或 600519.SH)'})
-        }
+        response = json.dumps({'error': '缺少股票代码 (示例：600519 或 600519.SH)'})
+        start_response('400 Bad Request', list(headers.items()))
+        return [response.encode('utf-8')]
     
     try:
         # Fetch stock data
         df = fetch_stock_data(symbol)
         if df is None or len(df) < 60:
-            return {
-                'statusCode': 400,
-                'headers': headers,
-                'body': json.dumps({'error': '数据不足，需要至少 60 个交易日'})
-            }
+            response = json.dumps({'error': '数据不足，需要至少 60 个交易日'})
+            start_response('400 Bad Request', list(headers.items()))
+            return [response.encode('utf-8')]
         
         # Analyze stock
         result = analyze_stock(symbol, df)
         
-        return {
-            'statusCode': 200,
-            'headers': headers,
-            'body': json.dumps({
-                'success': True,
-                'symbol': symbol,
-                'analysis': result,
-                'timestamp': datetime.now().isoformat()
-            }, ensure_ascii=False)
+        response_data = {
+            'success': True,
+            'symbol': symbol,
+            'analysis': result,
+            'timestamp': datetime.now().isoformat()
         }
+        response = json.dumps(response_data, ensure_ascii=False)
+        start_response('200 OK', list(headers.items()))
+        return [response.encode('utf-8')]
+        
     except Exception as e:
         import traceback
         error_detail = traceback.format_exc()
-        return {
-            'statusCode': 500,
-            'headers': headers,
-            'body': json.dumps({'error': f'分析失败：{str(e)}', 'detail': error_detail})
-        }
+        response = json.dumps({'error': f'分析失败：{str(e)}', 'detail': error_detail})
+        start_response('500 Internal Server Error', list(headers.items()))
+        return [response.encode('utf-8')]
 
 
 def fetch_stock_data(symbol: str) -> pd.DataFrame:
@@ -160,7 +162,7 @@ def analyze_stock(symbol: str, df: pd.DataFrame) -> dict:
     # 3. Market Comparison (simplified)
     try:
         stock_ret = (df['Close'].iloc[-1] - df['Close'].iloc[-10]) / df['Close'].iloc[-10] * 100
-        diff = stock_ret  # Simplified: compare with 0
+        diff = stock_ret
         if diff > 2:
             indicators['大盘对比'] = f"强于大盘 +{diff:.1f}%"
             indicators['大盘对比_颜色'] = "🔴"
