@@ -3,7 +3,7 @@ Vercel Serverless API - PriceAction Pro
 AI 股票分析系统 - 裸 K 策略 v3.1
 
 Vercel Python Runtime Requirements:
-- Must export 'app' or 'application' at module level
+- Must use WSGI signature: handler(environ, start_response)
 - See: https://vercel.com/docs/runtimes#official-runtimes/python
 """
 
@@ -13,10 +13,6 @@ import numpy as np
 from datetime import datetime
 from urllib.parse import parse_qs, urlparse
 import akshare as ak
-
-
-# Vercel requires 'app' at module level
-app = None
 
 
 def handler(environ, start_response):
@@ -31,16 +27,16 @@ def handler(environ, start_response):
         Response body iterator
     """
     
-    headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Content-Type': 'application/json'
-    }
+    headers = [
+        ('Content-Type', 'application/json'),
+        ('Access-Control-Allow-Origin', '*'),
+        ('Access-Control-Allow-Methods', 'GET, OPTIONS'),
+        ('Access-Control-Allow-Headers', 'Content-Type')
+    ]
     
     # Handle OPTIONS (CORS preflight)
     if environ.get('REQUEST_METHOD') == 'OPTIONS':
-        start_response('200 OK', list(headers.items()))
+        start_response('200 OK', headers)
         return [b'']
     
     # Parse query parameters
@@ -51,12 +47,12 @@ def handler(environ, start_response):
         symbol = symbol_list[0] if symbol_list else ''
     except Exception as e:
         response = json.dumps({'error': f'Parse error: {str(e)}'})
-        start_response('500 Internal Server Error', list(headers.items()))
+        start_response('500 Internal Server Error', headers)
         return [response.encode('utf-8')]
     
     if not symbol:
         response = json.dumps({'error': '缺少股票代码 (示例：600519 或 600519.SH)'})
-        start_response('400 Bad Request', list(headers.items()))
+        start_response('400 Bad Request', headers)
         return [response.encode('utf-8')]
     
     try:
@@ -64,7 +60,7 @@ def handler(environ, start_response):
         df = fetch_stock_data(symbol)
         if df is None or len(df) < 60:
             response = json.dumps({'error': '数据不足，需要至少 60 个交易日'})
-            start_response('400 Bad Request', list(headers.items()))
+            start_response('400 Bad Request', headers)
             return [response.encode('utf-8')]
         
         # Analyze stock
@@ -77,14 +73,14 @@ def handler(environ, start_response):
             'timestamp': datetime.now().isoformat()
         }
         response = json.dumps(response_data, ensure_ascii=False)
-        start_response('200 OK', list(headers.items()))
+        start_response('200 OK', headers)
         return [response.encode('utf-8')]
         
     except Exception as e:
         import traceback
         error_detail = traceback.format_exc()
         response = json.dumps({'error': f'分析失败：{str(e)}', 'detail': error_detail})
-        start_response('500 Internal Server Error', list(headers.items()))
+        start_response('500 Internal Server Error', headers)
         return [response.encode('utf-8')]
 
 
