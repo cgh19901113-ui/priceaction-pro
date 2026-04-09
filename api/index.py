@@ -1,38 +1,14 @@
 """
 Vercel Serverless API - PriceAction Pro
 AI 股票分析系统 - 裸 K 策略 v3.1
-
-数据源：Tushare (需要配置 TUSHARE_TOKEN)
-备用：Akshare (如果 Tushare 不可用)
 """
 
 import json
 import pandas as pd
 import numpy as np
-import os
 from datetime import datetime
-
-# 禁用代理
-os.environ['HTTP_PROXY'] = ''
-os.environ['HTTPS_PROXY'] = ''
-os.environ['NO_PROXY'] = '*'
-
-# 尝试导入 Tushare
-try:
-    import tushare as ts
-    TS_AVAILABLE = True
-    ts.set_token(os.environ.get('TUSHARE_TOKEN', ''))
-    pro = ts.pro_api()
-except:
-    TS_AVAILABLE = False
-    pro = None
-
-# 尝试导入 Akshare
-try:
-    import akshare as ak
-    AK_AVAILABLE = True
-except:
-    AK_AVAILABLE = False
+import requests
+import akshare as ak
 
 
 def handler(request):
@@ -49,19 +25,8 @@ def handler(request):
     if request.method == 'OPTIONS':
         return {'statusCode': 200, 'headers': headers, 'body': ''}
     
-    # Parse query params from URL
-    from urllib.parse import parse_qs, urlparse
-    
-    # Get query params
-    symbol = ''
-    if hasattr(request, 'query_params'):
-        symbol = request.query_params.get('symbol', '')
-    elif hasattr(request, 'args'):
-        symbol = request.args.get('symbol', '')
-    elif hasattr(request, 'url'):
-        parsed = urlparse(request.url)
-        params = parse_qs(parsed.query)
-        symbol = params.get('symbol', [''])[0]
+    # Get symbol from query params
+    symbol = request.args.get('symbol', '') if hasattr(request, 'args') else ''
     
     if not symbol:
         return {
@@ -71,7 +36,7 @@ def handler(request):
         }
     
     try:
-        # 获取数据
+        # Fetch stock data
         df = fetch_stock_data(symbol)
         if df is None or len(df) < 60:
             return {
@@ -80,7 +45,7 @@ def handler(request):
                 'body': json.dumps({'error': '数据不足，需要至少 60 个交易日'})
             }
         
-        # 执行分析
+        # Analyze stock
         result = analyze_stock(symbol, df)
         
         return {
@@ -96,7 +61,6 @@ def handler(request):
     except Exception as e:
         import traceback
         error_detail = traceback.format_exc()
-        print(f"Error: {error_detail}")
         return {
             'statusCode': 500,
             'headers': headers,
@@ -105,61 +69,43 @@ def handler(request):
 
 
 def fetch_stock_data(symbol: str) -> pd.DataFrame:
-    """获取股票数据"""
-    
-    # 标准化股票代码
-    symbol = symbol.upper().replace('.', '')
-    
-    # 尝试使用 Tushare
-    if TS_AVAILABLE and pro:
-        try:
-            df = pro.daily(ts_code=symbol, start_date='20200101', end_date='20261231')
-            if len(df) > 0:
-                df = df.sort_values('trade_date')
-                df['Date'] = pd.to_datetime(df['trade_date'])
-                df = df.set_index('Date')
-                df = df.rename(columns={
-                    'open': 'Open',
-                    'close': 'Close',
-                    'high': 'High',
-                    'low': 'Low',
-                    'vol': 'Volume'
-                })
-                return df[['Open', 'Close', 'High', 'Low', 'Volume']]
-        except Exception as e:
-            print(f"Tushare error: {e}")
-    
-    # Tushare 不可用，尝试 Akshare
-    if AK_AVAILABLE:
-        try:
-            # 添加后缀
-            if not any(symbol.endswith(suffix) for suffix in ['.SZ', '.SH', '.SS']):
-                if symbol.startswith('6'):
-                    symbol = f"{symbol}.SH"
-                else:
-                    symbol = f"{symbol}.SZ"
-            
-            df = ak.stock_zh_a_hist(symbol=symbol, period="daily", timeout=30)
-            if len(df) > 0:
-                df = df.set_index('Date')
-                df.index = pd.to_datetime(df.index)
-                for col in ['Open', 'Close', 'High', 'Low', 'Volume']:
-                    df[col] = pd.to_numeric(df[col], errors='coerce')
-                return df[['Open', 'Close', 'High', 'Low', 'Volume']]
-        except Exception as e:
-            print(f"Akshare error: {e}")
-    
-    return None
+    """Fetch stock data from Akshare"""
+    try:
+        # Normalize symbol
+        symbol = symbol.upper().replace('.', '')
+        
+        # Add suffix if missing
+        if not any(symbol.endswith(suffix) for suffix in ['.SZ', '.SH', '.SS']):
+            if symbol.startswith('6'):
+                symbol = f"{symbol}.SH"
+            else:
+                symbol = f"{symbol}.SZ"
+        
+        # Fetch data
+        df = ak.stock_zh_a_hist(symbol=symbol, period="daily", timeout=30)
+        if len(df) == 0:
+            return None
+        
+        # Process data
+        df = df.set_index('Date')
+        df.index = pd.to_datetime(df.index)
+        for col in ['Open', 'Close', 'High', 'Low', 'Volume']:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        return df[['Open', 'Close', 'High', 'Low', 'Volume']]
+    except Exception as e:
+        print(f"Error fetching {symbol}: {e}")
+        return None
 
 
 def analyze_stock(symbol: str, df: pd.DataFrame) -> dict:
-    """分析股票"""
+    """Analyze stock with 6 indicators"""
     if len(df) < 60:
         return {"error": "数据不足"}
     
     indicators = {}
     
-    # 1. 大周期趋势
+    # 1. Major Trend (MA20/MA60)
     close = df['Close'].iloc[-1]
     ma20 = df['Close'].rolling(20).mean().iloc[-1]
     ma60 = df['Close'].rolling(60).mean().iloc[-1]
@@ -174,7 +120,7 @@ def analyze_stock(symbol: str, df: pd.DataFrame) -> dict:
         indicators['大周期'] = "震荡"
         indicators['大周期_颜色'] = "⚪"
     
-    # 2. 趋势持续天数
+    # 2. Trend Duration
     ma20_series = df['Close'].rolling(20).mean()
     days = 0
     for i in range(len(df)-1, max(0, len(df)-20), -1):
@@ -193,12 +139,10 @@ def analyze_stock(symbol: str, df: pd.DataFrame) -> dict:
         indicators['趋势持续'] = f"{days}天 过期"
         indicators['趋势持续_颜色'] = "⚪"
     
-    # 3. 大盘对比
+    # 3. Market Comparison (simplified)
     try:
         stock_ret = (df['Close'].iloc[-1] - df['Close'].iloc[-10]) / df['Close'].iloc[-10] * 100
-        # 简化：假设大盘收益为 0
-        bench_ret = 0
-        diff = stock_ret - bench_ret
+        diff = stock_ret  # Simplified: compare with 0
         if diff > 2:
             indicators['大盘对比'] = f"强于大盘 +{diff:.1f}%"
             indicators['大盘对比_颜色'] = "🔴"
@@ -212,7 +156,7 @@ def analyze_stock(symbol: str, df: pd.DataFrame) -> dict:
         indicators['大盘对比'] = "数据不足"
         indicators['大盘对比_颜色'] = "⚪"
     
-    # 4. 主力量能
+    # 4. Volume Flow
     returns = df['Close'].pct_change()
     flow = (returns * df['Volume']).iloc[-10:].sum()
     flow_3d = (returns * df['Volume']).iloc[-3:].sum()
@@ -226,7 +170,7 @@ def analyze_stock(symbol: str, df: pd.DataFrame) -> dict:
         indicators['主力量能'] = "中性"
         indicators['主力量能_颜色'] = "⚪"
     
-    # 5. 10 日振幅
+    # 5. 10-Day Amplitude
     high = df['High'].iloc[-10:].max()
     low = df['Low'].iloc[-10:].min()
     amplitude = (high - low) / close * 100
@@ -240,7 +184,7 @@ def analyze_stock(symbol: str, df: pd.DataFrame) -> dict:
         indicators['10 日振幅'] = f"{amplitude:.1f}%"
         indicators['10 日振幅_颜色'] = "⚪"
     
-    # 6. 当前信号 (根据评分动态生成)
+    # 6. Signal (based on score)
     score = 0
     if indicators.get('大周期') == '看涨':
         score += 25
@@ -265,7 +209,7 @@ def analyze_stock(symbol: str, df: pd.DataFrame) -> dict:
         indicators['当前信号'] = "卖出"
         indicators['当前信号_颜色'] = "🔴"
     
-    # 推荐
+    # Recommendation
     if indicators.get('大周期') == '看跌':
         recommendation = "❌ Pass - 大周期看跌"
     elif '过期' in indicators.get('趋势持续', ''):
@@ -277,7 +221,7 @@ def analyze_stock(symbol: str, df: pd.DataFrame) -> dict:
     else:
         recommendation = "⚪ 观望"
     
-    # 简评
+    # Comment
     comments = []
     if indicators.get('大周期') == '看涨':
         comments.append("日线趋势向上")
