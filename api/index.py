@@ -2,86 +2,56 @@
 Vercel Serverless API - PriceAction Pro
 AI 股票分析系统 - 裸 K 策略 v3.1
 
-Vercel Python Runtime Requirements:
-- Must use WSGI signature: handler(environ, start_response)
-- See: https://vercel.com/docs/runtimes#official-runtimes/python
+Using FastAPI for Vercel Serverless Functions
+See: https://github.com/vercel/examples/tree/main/python/fastapi
 """
 
-import json
+from fastapi import FastAPI, Query, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from urllib.parse import parse_qs, urlparse
 import akshare as ak
+import json
+
+app = FastAPI(title="PriceAction Pro API")
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET", "OPTIONS"],
+    allow_headers=["Content-Type"],
+)
 
 
-def handler(environ, start_response):
-    """
-    WSGI Handler for Vercel Python Runtime
-    
-    Args:
-        environ: WSGI environment dict
-        start_response: WSGI start_response callable
-    
-    Returns:
-        Response body iterator
-    """
-    
-    headers = [
-        ('Content-Type', 'application/json'),
-        ('Access-Control-Allow-Origin', '*'),
-        ('Access-Control-Allow-Methods', 'GET, OPTIONS'),
-        ('Access-Control-Allow-Headers', 'Content-Type')
-    ]
-    
-    # Handle OPTIONS (CORS preflight)
-    if environ.get('REQUEST_METHOD') == 'OPTIONS':
-        start_response('200 OK', headers)
-        return [b'']
-    
-    # Parse query parameters
-    try:
-        query_string = environ.get('QUERY_STRING', '')
-        query_params = parse_qs(query_string)
-        symbol_list = query_params.get('symbol', [])
-        symbol = symbol_list[0] if symbol_list else ''
-    except Exception as e:
-        response = json.dumps({'error': f'Parse error: {str(e)}'})
-        start_response('500 Internal Server Error', headers)
-        return [response.encode('utf-8')]
-    
-    if not symbol:
-        response = json.dumps({'error': '缺少股票代码 (示例：600519 或 600519.SH)'})
-        start_response('400 Bad Request', headers)
-        return [response.encode('utf-8')]
-    
+@app.get("/api")
+async def read_root():
+    return {"message": "PriceAction Pro API", "status": "running"}
+
+
+@app.get("/api/analyze")
+async def analyze_stock(symbol: str = Query(..., description="Stock symbol (e.g., 600519 or 600519.SH)")):
+    """Analyze stock with 6 indicators"""
     try:
         # Fetch stock data
         df = fetch_stock_data(symbol)
         if df is None or len(df) < 60:
-            response = json.dumps({'error': '数据不足，需要至少 60 个交易日'})
-            start_response('400 Bad Request', headers)
-            return [response.encode('utf-8')]
+            raise HTTPException(status_code=400, detail="数据不足，需要至少 60 个交易日")
         
         # Analyze stock
-        result = analyze_stock(symbol, df)
+        result = analyze_stock_data(symbol, df)
         
-        response_data = {
-            'success': True,
-            'symbol': symbol,
-            'analysis': result,
-            'timestamp': datetime.now().isoformat()
+        return {
+            "success": True,
+            "symbol": symbol,
+            "analysis": result,
+            "timestamp": datetime.now().isoformat()
         }
-        response = json.dumps(response_data, ensure_ascii=False)
-        start_response('200 OK', headers)
-        return [response.encode('utf-8')]
-        
+    except HTTPException:
+        raise
     except Exception as e:
-        import traceback
-        error_detail = traceback.format_exc()
-        response = json.dumps({'error': f'分析失败：{str(e)}', 'detail': error_detail})
-        start_response('500 Internal Server Error', headers)
-        return [response.encode('utf-8')]
+        raise HTTPException(status_code=500, detail=f"分析失败：{str(e)}")
 
 
 def fetch_stock_data(symbol: str) -> pd.DataFrame:
@@ -114,7 +84,7 @@ def fetch_stock_data(symbol: str) -> pd.DataFrame:
         return None
 
 
-def analyze_stock(symbol: str, df: pd.DataFrame) -> dict:
+def analyze_stock_data(symbol: str, df: pd.DataFrame) -> dict:
     """Analyze stock with 6 indicators"""
     if len(df) < 60:
         return {"error": "数据不足"}
