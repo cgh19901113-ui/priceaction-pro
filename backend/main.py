@@ -50,8 +50,13 @@ class PriceActionStrategy:
         # 5. 10 日振幅
         indicators['10 日振幅'], indicators['10 日振幅_颜色'] = self._calc_amplitude(df)
         
-        # 6. 当前信号
-        indicators['当前信号'], indicators['当前信号_颜色'] = "中性", "⚪"
+        # 6. 当前信号 (根据评分动态生成)
+        if score >= 70:
+            indicators['当前信号'], indicators['当前信号_颜色'] = "买入", "🟢"
+        elif score >= 40:
+            indicators['当前信号'], indicators['当前信号_颜色'] = "持有", "🟠"
+        else:
+            indicators['当前信号'], indicators['当前信号_颜色'] = "卖出", "🔴"
         
         # 评分
         score = self._calc_score(indicators)
@@ -278,22 +283,28 @@ def health_check():
 @app.get("/api/analyze")
 def analyze_stock(symbol: str):
     """分析股票"""
-    if not symbol:
-        raise HTTPException(status_code=400, detail="缺少股票代码")
+    # 验证股票代码格式
+    if not symbol or len(symbol) < 6:
+        raise HTTPException(status_code=400, detail="无效的股票代码格式 (示例：000001.sz)")
     
-    # 获取数据
-    df = fetch_stock_data(symbol)
-    if df is None or len(df) < 60:
-        raise HTTPException(status_code=400, detail=f"无法获取 {symbol} 的数据")
-    
-    # 执行分析
-    result = strategy.analyze(symbol, df)
-    
-    return {
-        "success": True,
-        "symbol": symbol,
-        "analysis": result
-    }
+    try:
+        # 获取数据
+        df = fetch_stock_data(symbol)
+        if df is None or len(df) < 60:
+            raise HTTPException(status_code=400, detail=f"数据不足，需要至少 60 个交易日")
+        
+        # 执行分析
+        result = strategy.analyze(symbol, df)
+        
+        return {
+            "success": True,
+            "symbol": symbol,
+            "analysis": result
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"分析失败：{str(e)}")
 
 @app.get("/api/popular")
 def get_popular_stocks():

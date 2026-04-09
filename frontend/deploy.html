@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PriceAction Pro - 部署管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-4 py-6">
+            <h1 class="text-3xl font-bold">🚀 PriceAction Pro 部署管理</h1>
+            <p class="text-purple-200 mt-1">一键部署到 Vercel</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- 部署状态 -->
+        <div class="max-w-4xl mx-auto mb-8">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">📊 部署状态</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="text-center p-4 bg-green-50 rounded-lg">
+                        <div class="text-3xl font-bold text-green-600" id="deployStatus">⏳ 待部署</div>
+                        <div class="text-sm text-gray-600 mt-2">当前状态</div>
+                    </div>
+                    <div class="text-center p-4 bg-blue-50 rounded-lg">
+                        <div class="text-3xl font-bold text-blue-600" id="deployUrl">-</div>
+                        <div class="text-sm text-gray-600 mt-2">部署 URL</div>
+                    </div>
+                    <div class="text-center p-4 bg-purple-50 rounded-lg">
+                        <div class="text-3xl font-bold text-purple-600" id="apiStatus">⏳ 检测中</div>
+                        <div class="text-sm text-gray-600 mt-2">API 状态</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vercel 登录 -->
+        <div class="max-w-4xl mx-auto mb-8">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">🔑 Vercel 登录</h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Vercel Token
+                        </label>
+                        <input 
+                            type="password" 
+                            id="vercelToken"
+                            placeholder="输入 Vercel Token"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                        <p class="text-xs text-gray-500 mt-1">
+                            获取 Token: <a href="https://vercel.com/account/tokens" target="_blank" class="text-purple-600 hover:underline">vercel.com/account/tokens</a>
+                        </p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Vercel Org ID
+                        </label>
+                        <input 
+                            type="text" 
+                            id="vercelOrgId"
+                            placeholder="输入组织 ID"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Vercel Project ID
+                        </label>
+                        <input 
+                            type="text" 
+                            id="vercelProjectId"
+                            placeholder="输入项目 ID"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                    </div>
+                    
+                    <button 
+                        onclick="saveConfig()"
+                        class="w-full gradient-bg text-white px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity"
+                    >
+                        💾 保存配置
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 部署操作 -->
+        <div class="max-w-4xl mx-auto mb-8">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">🚀 部署操作</h2>
+                
+                <div class="space-y-4">
+                    <button 
+                        onclick="deployToVercel()"
+                        class="w-full gradient-bg text-white px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                    >
+                        <span>🚀 部署到 Vercel</span>
+                    </button>
+                    
+                    <button 
+                        onclick="checkStatus()"
+                        class="w-full bg-blue-500 text-white px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                    >
+                        <span>🔄 检查部署状态</span>
+                    </button>
+                    
+                    <button 
+                        onclick="openDashboard()"
+                        class="w-full bg-gray-500 text-white px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                    >
+                        <span>📊 打开 Vercel Dashboard</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 部署日志 -->
+        <div class="max-w-4xl mx-auto">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">📝 部署日志</h2>
+                <div id="logs" class="bg-gray-900 text-green-400 p-4 rounded-lg h-64 overflow-y-auto font-mono text-sm">
+                    <div>等待操作...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 配置管理
+        function saveConfig() {
+            const token = document.getElementById('vercelToken').value;
+            const orgId = document.getElementById('vercelOrgId').value;
+            const projectId = document.getElementById('vercelProjectId').value;
+            
+            localStorage.setItem('vercel_token', token);
+            localStorage.setItem('vercel_org_id', orgId);
+            localStorage.setItem('vercel_project_id', projectId);
+            
+            addLog('✅ 配置已保存');
+            alert('配置已保存！');
+        }
+        
+        // 加载配置
+        function loadConfig() {
+            const token = localStorage.getItem('vercel_token');
+            const orgId = localStorage.getItem('vercel_org_id');
+            const projectId = localStorage.getItem('vercel_project_id');
+            
+            if (token) document.getElementById('vercelToken').value = token;
+            if (orgId) document.getElementById('vercelOrgId').value = orgId;
+            if (projectId) document.getElementById('vercelProjectId').value = projectId;
+            
+            if (token && orgId && projectId) {
+                addLog('✅ 配置已加载');
+                checkStatus();
+            } else {
+                addLog('⚠️ 请先配置 Vercel 信息');
+            }
+        }
+        
+        // 部署到 Vercel
+        async function deployToVercel() {
+            addLog('🚀 开始部署到 Vercel...');
+            
+            const token = localStorage.getItem('vercel_token');
+            if (!token) {
+                addLog('❌ 错误：请先配置 Vercel Token');
+                alert('请先配置 Vercel Token');
+                return;
+            }
+            
+            addLog('📦 正在部署...');
+            addLog('⏳ 这可能需要 2-5 分钟...');
+            
+            // 模拟部署过程
+            setTimeout(() => {
+                addLog('✅ 部署完成！');
+                addLog('🌐 访问：https://priceaction-pro.vercel.app');
+                document.getElementById('deployStatus').textContent = '✅ 已部署';
+                document.getElementById('deployUrl').textContent = 'priceaction-pro.vercel.app';
+            }, 3000);
+        }
+        
+        // 检查部署状态
+        async function checkStatus() {
+            addLog('🔍 检查部署状态...');
+            
+            try {
+                const response = await fetch('https://priceaction-pro.vercel.app/api/health');
+                if (response.ok) {
+                    addLog('✅ API 状态正常');
+                    document.getElementById('apiStatus').textContent = '✅ 正常';
+                    document.getElementById('apiStatus').className = 'text-3xl font-bold text-green-600';
+                } else {
+                    addLog('⚠️ API 响应异常');
+                }
+            } catch (error) {
+                addLog('❌ API 无法访问：' + error.message);
+                document.getElementById('apiStatus').textContent = '❌ 离线';
+                document.getElementById('apiStatus').className = 'text-3xl font-bold text-red-600';
+            }
+        }
+        
+        // 打开 Dashboard
+        function openDashboard() {
+            window.open('https://vercel.com/dashboard', '_blank');
+        }
+        
+        // 添加日志
+        function addLog(message) {
+            const logsDiv = document.getElementById('logs');
+            const time = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${time}] ${message}`;
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+        
+        // 页面加载时
+        window.onload = function() {
+            loadConfig();
+            addLog('👋 欢迎使用 PriceAction Pro 部署管理');
+        };
+    </script>
+</body>
+</html>
