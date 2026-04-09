@@ -7,12 +7,17 @@ import json
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import requests
+from urllib.parse import parse_qs
 import akshare as ak
 
 
 def handler(request):
-    """Vercel Serverless Handler"""
+    """
+    Vercel Python Serverless Function
+    
+    For more information, visit:
+    https://vercel.com/docs/runtimes#official-runtimes/python
+    """
     
     headers = {
         'Access-Control-Allow-Origin': '*',
@@ -25,8 +30,21 @@ def handler(request):
     if request.method == 'OPTIONS':
         return {'statusCode': 200, 'headers': headers, 'body': ''}
     
-    # Get symbol from query params
-    symbol = request.args.get('symbol', '') if hasattr(request, 'args') else ''
+    # Parse query parameters from URL
+    from urllib.parse import urlparse, parse_qs
+    
+    # Get query params
+    try:
+        parsed_url = urlparse(request.url)
+        query_params = parse_qs(parsed_url.query)
+        symbol_list = query_params.get('symbol', [])
+        symbol = symbol_list[0] if symbol_list else ''
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'Parse error: {str(e)}'})
+        }
     
     if not symbol:
         return {
