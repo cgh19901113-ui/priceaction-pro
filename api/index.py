@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import akshare as ak
+import baostock as bs
 
 app = FastAPI(title="PriceAction Pro API")
 
@@ -54,22 +54,51 @@ async def analyze_stock(symbol: str = Query(..., description="Stock symbol (e.g.
 
 
 def fetch_stock_data(symbol: str) -> pd.DataFrame:
-    """Fetch stock data from Akshare (东方财富)"""
+    """Fetch stock data from BaoStock (证券宝 - 免费 A 股数据)"""
     try:
-        # Normalize symbol
+        # Normalize symbol for BaoStock
         symbol = symbol.upper().replace('.', '')
         
-        # Add suffix if missing
-        if not any(symbol.endswith(suffix) for suffix in ['.SZ', '.SH', '.SS']):
-            if symbol.startswith('6'):
-                symbol = f"{symbol}.SH"
-            else:
-                symbol = f"{symbol}.SZ"
+        # Add market prefix
+        if symbol.startswith('6'):
+            bs_symbol = f"sh.{symbol}"
+        elif symbol.startswith('0') or symbol.startswith('3'):
+            bs_symbol = f"sz.{symbol}"
+        else:
+            bs_symbol = f"sh.{symbol}"  # Default to SH
         
-        print(f"Fetching data for {symbol}...")
+        print(f"Fetching data for {bs_symbol}...")
         
-        # Fetch data from Akshare
-        df = ak.stock_zh_a_hist(symbol=symbol, period="daily", timeout=30)
+        # Login to BaoStock
+        lg = bs.login()
+        if lg.error_code != '0':
+            print(f"BaoStock login failed: {lg.error_msg}")
+            return None
+        
+        # Fetch history K-line data
+        rs = bs.query_history_k_data_plus(
+            bs_symbol,
+            "date,open,high,low,close,volume",
+            start_date='2020-01-01',
+            end_date=datetime.now().strftime('%Y-%m-%d'),
+            frequency="d",
+            adjustflag="3"  # 不复权
+        )
+        
+        if rs.error_code != '0':
+            print(f"Query failed: {rs.error_msg}")
+            bs.logout()
+            return None
+        
+        # Convert to DataFrame
+        data_list = []
+        while rs.next():
+            data_list.append(rs.get_row_data())
+        
+        df = pd.DataFrame(data_list, columns=rs.fields)
+        
+        # Logout
+        bs.logout()
         
         if len(df) == 0:
             print("No data returned")
@@ -78,10 +107,19 @@ def fetch_stock_data(symbol: str) -> pd.DataFrame:
         print(f"Fetched {len(df)} rows")
         
         # Process data
-        df = df.set_index('Date')
+        df = df.set_index('date')
         df.index = pd.to_datetime(df.index)
-        for col in ['Open', 'Close', 'High', 'Low', 'Volume']:
+        for col in ['open', 'high', 'low', 'close', 'volume']:
             df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # Rename columns to match expected format
+        df = df.rename(columns={
+            'open': 'Open',
+            'high': 'High',
+            'low': 'Low',
+            'close': 'Close',
+            'volume': 'Volume'
+        })
         
         return df[['Open', 'Close', 'High', 'Low', 'Volume']]
         
