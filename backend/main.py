@@ -50,7 +50,10 @@ class PriceActionStrategy:
         # 5. 10 日振幅
         indicators['10 日振幅'], indicators['10 日振幅_颜色'] = self._calc_amplitude(df)
         
-        # 6. 当前信号 (根据评分动态生成)
+        # 6. 评分
+        score = self._calc_score(indicators)
+        
+        # 7. 当前信号 (根据评分动态生成)
         if score >= 70:
             indicators['当前信号'], indicators['当前信号_颜色'] = "买入", "🟢"
         elif score >= 40:
@@ -58,8 +61,6 @@ class PriceActionStrategy:
         else:
             indicators['当前信号'], indicators['当前信号_颜色'] = "卖出", "🔴"
         
-        # 评分
-        score = self._calc_score(indicators)
         recommendation = self._get_recommendation(score, indicators)
         
         return {
