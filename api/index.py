@@ -67,8 +67,14 @@ def fetch_stock_data(symbol: str) -> pd.DataFrame:
             else:
                 symbol = f"{symbol}.SZ"
         
+        print(f"Fetching data for {symbol}...")
+        
         # Fetch data
         df = ak.stock_zh_a_hist(symbol=symbol, period="daily", timeout=30)
+        
+        print(f"Fetched {len(df)} rows")
+        print(f"Columns: {df.columns.tolist()}")
+        
         if len(df) == 0:
             return None
         
@@ -80,7 +86,7 @@ def fetch_stock_data(symbol: str) -> pd.DataFrame:
         
         return df[['Open', 'Close', 'High', 'Low', 'Volume']]
     except Exception as e:
-        print(f"Error fetching {symbol}: {e}")
+        print(f"Error fetching {symbol}: {type(e).__name__}: {e}")
         return None
 
 
