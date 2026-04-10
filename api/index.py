@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import baostock as bs
+import yfinance as yf
 
 app = FastAPI(title="PriceAction Pro API")
 
@@ -54,48 +54,43 @@ async def analyze_stock(symbol: str = Query(..., description="Stock symbol (e.g.
 
 
 def fetch_stock_data(symbol: str) -> pd.DataFrame:
-    """Fetch stock data from BaoStock (证券宝 - 免费 A 股数据)"""
+    """Fetch stock data from Yahoo Finance (Vercel 可访问)"""
     try:
-        # Normalize symbol for BaoStock
+        # Normalize symbol
         symbol = symbol.upper().replace('.', '')
         
-        # Add market prefix
+        # Convert to Yahoo Finance format
+        # 600519 -> 600519.SS (Shanghai)
+        # 000001 -> 000001.SZ (Shenzhen)
         if symbol.startswith('6'):
-            bs_symbol = f"sh.{symbol}"
+            yf_symbol = f"{symbol}.SS"
         elif symbol.startswith('0') or symbol.startswith('3'):
-            bs_symbol = f"sz.{symbol}"
+            yf_symbol = f"{symbol}.SZ"
         else:
-            bs_symbol = f"sh.{symbol}"  # Default to SH
+            yf_symbol = f"{symbol}.SS"  # Default to Shanghai
         
-        print(f"Fetching data for {bs_symbol}...")
+        print(f"Fetching data for {yf_symbol}...")
         
-        # Login to BaoStock
-        lg = bs.login()
-        if lg.error_code != '0':
-            print(f"BaoStock login failed: {lg.error_msg}")
+        # Fetch data from Yahoo Finance
+        ticker = yf.Ticker(yf_symbol)
+        df = ticker.history(period="1y")
+        
+        if len(df) == 0:
+            print(f"No data for {yf_symbol}")
             return None
         
-        # Fetch history K-line data
-        rs = bs.query_history_k_data_plus(
-            bs_symbol,
-            "date,open,high,low,close,volume",
-            start_date='2020-01-01',
-            end_date=datetime.now().strftime('%Y-%m-%d'),
-            frequency="d",
-            adjustflag="3"  # 不复权
-        )
+        # Rename columns to match expected format
+        df = df.rename(columns={
+            'Open': 'Open',
+            'High': 'High',
+            'Low': 'Low',
+            'Close': 'Close',
+            'Volume': 'Volume'
+        })
         
-        if rs.error_code != '0':
-            print(f"Query failed: {rs.error_msg}")
-            bs.logout()
-            return None
+        print(f"Fetched {len(df)} rows")
         
-        # Convert to DataFrame
-        data_list = []
-        while rs.next():
-            data_list.append(rs.get_row_data())
-        
-        df = pd.DataFrame(data_list, columns=rs.fields)
+        return df[['Open', 'Close', 'High', 'Low', 'Volume']]
         
         # Logout
         bs.logout()
