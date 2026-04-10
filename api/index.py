@@ -11,8 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import akshare as ak
-import json
+import requests
+import os
 
 app = FastAPI(title="PriceAction Pro API")
 
@@ -55,36 +55,77 @@ async def analyze_stock(symbol: str = Query(..., description="Stock symbol (e.g.
 
 
 def fetch_stock_data(symbol: str) -> pd.DataFrame:
-    """Fetch stock data from Akshare"""
+    """Fetch stock data from itick.org (Volcengine)"""
     try:
         # Normalize symbol
         symbol = symbol.upper().replace('.', '')
         
-        # Add suffix if missing
-        if not any(symbol.endswith(suffix) for suffix in ['.SZ', '.SH', '.SS']):
-            if symbol.startswith('6'):
-                symbol = f"{symbol}.SH"
-            else:
-                symbol = f"{symbol}.SZ"
+        # Determine market region and code
+        if symbol.startswith('6'):
+            region = 'SH'
+            code = symbol
+        elif symbol.startswith('0') or symbol.startswith('3'):
+            region = 'SZ'
+            code = symbol
+        else:
+            region = 'SH'  # Default to SH
+            code = symbol
         
-        print(f"Fetching data for {symbol}...")
+        print(f"Fetching data for {region}:{code}...")
         
-        # Fetch data
-        df = ak.stock_zh_a_hist(symbol=symbol, period="daily", timeout=30)
+        # Get token from environment variable
+        token = os.environ.get('ITICK_TOKEN', 'MTllMmMyMThhMDM2NGZlNWIzNjJjMWViMzU2YzgxODY')
         
-        print(f"Fetched {len(df)} rows")
-        print(f"Columns: {df.columns.tolist()}")
+        # Fetch K-line data from itick.org
+        url = "https://api.itick.org/stock/kline"
+        headers = {
+            "accept": "application/json",
+            "token": token
+        }
+        params = {
+            "type": "stock",
+            "region": region,
+            "code": code,
+            "period": "day"
+        }
         
-        if len(df) == 0:
+        response = requests.get(url, headers=headers, params=params, timeout=30)
+        response.raise_for_status()
+        result = response.json()
+        
+        print(f"API Response code: {result.get('code')}")
+        
+        if result.get('code') != 0:
+            print(f"API Error: {result.get('msg')}")
             return None
         
-        # Process data
+        # Parse data
+        data = result.get('data', {})
+        klines = data.get('kline', [])
+        
+        if not klines or len(klines) == 0:
+            print("No K-line data returned")
+            return None
+        
+        print(f"Fetched {len(klines)} rows")
+        
+        # Convert to DataFrame
+        # Expected format: [timestamp, open, close, high, low, volume, ...]
+        df = pd.DataFrame(klines, columns=['timestamp', 'Open', 'Close', 'High', 'Low', 'Volume', 'turnover', 'change', 'change_ratio'])
+        
+        # Convert timestamp to datetime
+        df['Date'] = pd.to_datetime(df['timestamp'], unit='s')
         df = df.set_index('Date')
-        df.index = pd.to_datetime(df.index)
+        
+        # Convert numeric columns
         for col in ['Open', 'Close', 'High', 'Low', 'Volume']:
             df[col] = pd.to_numeric(df[col], errors='coerce')
         
         return df[['Open', 'Close', 'High', 'Low', 'Volume']]
+        
+    except requests.exceptions.RequestException as e:
+        print(f"HTTP Error: {type(e).__name__}: {e}")
+        return None
     except Exception as e:
         print(f"Error fetching {symbol}: {type(e).__name__}: {e}")
         return None
