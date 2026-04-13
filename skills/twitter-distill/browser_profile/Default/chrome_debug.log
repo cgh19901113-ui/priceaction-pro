@@ -1,0 +1,70 @@
+[0406/012331.960:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/012332.070:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/012332.070:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/012332.321:INFO:CONSOLE:342] "[.WebGL-0x8ac007b2a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels", source: https://x.com/home (342)
+[0406/012332.342:INFO:CONSOLE:354] "No available adapters.", source: https://x.com/home (354)
+[0406/012332.898:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/012335.706:INFO:CONSOLE:0] "Access to XMLHttpRequest at 'https://api.x.com/1.1/onboarding/task.json?redirect_after_login=%2Fhome&flow_name=login' from origin 'https://x.com' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.", source: https://x.com/i/flow/login?redirect_after_login=%2Fhome (0)
+[0406/012341.788:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/012341.859:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/012341.859:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/012342.507:INFO:CONSOLE:342] "[.WebGL-0x63cc025b6a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels", source: https://x.com/Hoyooyoo (342)
+[0406/012342.517:INFO:CONSOLE:342] "No available adapters.", source: https://x.com/Hoyooyoo (342)
+[0406/012342.950:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/012344.796:INFO:CONSOLE:81] "[GSI_LOGGER]: google.accounts.id.initialize() is called multiple times. This could cause unexpected behavior and only the last initialized instance will be used.", source: https://accounts.google.com/gsi/client (81)
+[0406/012539.033:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/012539.112:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/012539.112:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/012539.223:INFO:CONSOLE:342] "[.WebGL-0x3b14007a6a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels", source: https://x.com/KillaXBT (342)
+[0406/012539.486:INFO:CONSOLE:0] "No available adapters.", source: https://x.com/KillaXBT (0)
+[0406/012539.569:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/012540.703:INFO:CONSOLE:81] "[GSI_LOGGER]: google.accounts.id.initialize() is called multiple times. This could cause unexpected behavior and only the last initialized instance will be used.", source: https://accounts.google.com/gsi/client (81)
+[0406/012805.694:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/012805.804:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/012805.804:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/012806.003:INFO:CONSOLE:342] "[.WebGL-0x39bc00133800]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)", source: https://x.com/Will_Yang_ (342)
+[0406/012806.030:INFO:CONSOLE:354] "No available adapters.", source: https://x.com/Will_Yang_ (354)
+[0406/012806.479:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/012807.437:INFO:CONSOLE:81] "[GSI_LOGGER]: google.accounts.id.initialize() is called multiple times. This could cause unexpected behavior and only the last initialized instance will be used.", source: https://accounts.google.com/gsi/client (81)
+[0406/013028.000:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/013028.079:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/013028.079:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/013028.203:INFO:CONSOLE:354] "No available adapters.", source: https://x.com/yekoikoi (354)
+[0406/013028.490:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/013029.422:INFO:CONSOLE:81] "[GSI_LOGGER]: google.accounts.id.initialize() is called multiple times. This could cause unexpected behavior and only the last initialized instance will be used.", source: https://accounts.google.com/gsi/client (81)
+[0406/013306.268:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/013306.348:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/013306.348:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/013306.472:INFO:CONSOLE:354] "No available adapters.", source: https://x.com/0xtongcan (354)
+[0406/013306.806:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/013307.730:INFO:CONSOLE:81] "[GSI_LOGGER]: google.accounts.id.initialize() is called multiple times. This could cause unexpected behavior and only the last initialized instance will be used.", source: https://accounts.google.com/gsi/client (81)
+[0406/013525.675:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/013525.766:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/013525.766:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/013525.919:INFO:CONSOLE:354] "No available adapters.", source: https://x.com/WallStreet0Name (354)
+[0406/013526.278:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/013527.448:INFO:CONSOLE:81] "[GSI_LOGGER]: google.accounts.id.initialize() is called multiple times. This could cause unexpected behavior and only the last initialized instance will be used.", source: https://accounts.google.com/gsi/client (81)
+[0406/013758.433:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/013758.516:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/013758.516:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/013758.879:INFO:CONSOLE:0] "No available adapters.", source: https://x.com/CycleStudies (0)
+[0406/013758.938:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/013759.870:INFO:CONSOLE:81] "[GSI_LOGGER]: google.accounts.id.initialize() is called multiple times. This could cause unexpected behavior and only the last initialized instance will be used.", source: https://accounts.google.com/gsi/client (81)
+[0406/014050.357:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/014050.454:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/014050.454:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/014050.634:INFO:CONSOLE:354] "No available adapters.", source: https://x.com/Mingarithm (354)
+[0406/014050.934:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/014052.084:INFO:CONSOLE:81] "[GSI_LOGGER]: google.accounts.id.initialize() is called multiple times. This could cause unexpected behavior and only the last initialized instance will be used.", source: https://accounts.google.com/gsi/client (81)
+[0406/014343.558:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/014343.637:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/014343.637:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/014343.997:INFO:CONSOLE:0] "No available adapters.", source: https://x.com/Jingxin147741 (0)
+[0406/014344.024:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/014345.222:INFO:CONSOLE:81] "[GSI_LOGGER]: google.accounts.id.initialize() is called multiple times. This could cause unexpected behavior and only the last initialized instance will be used.", source: https://accounts.google.com/gsi/client (81)
+[0406/014601.907:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/014601.993:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/014601.994:ERROR:content\public\browser\web_contents_delegate.cc:302] WebContentsDelegate::CheckMediaAccessPermission: Not supported.
+[0406/014602.376:INFO:CONSOLE:0] "No available adapters.", source: https://x.com/PAVLeader (0)
+[0406/014602.433:INFO:CONSOLE:1] "Error", source: https://abs.twimg.com/responsive-web/client-web/vendor.5c0accda.js (1)
+[0406/014603.494:INFO:CONSOLE:81] "[GSI_LOGGER]: google.accounts.id.initialize() is called multiple times. This could cause unexpected behavior and only the last initialized instance will be used.", source: https://accounts.google.com/gsi/client (81)

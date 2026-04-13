@@ -1,0 +1,289 @@
+"""
+Twitter 博主数据蒸馏器 - 收集纯技术分析博主的历史推文
+
+使用 snscrape 库（无需 Twitter API 认证）
+安装：pip install snscrape
+"""
+
+import json
+import os
+import sys
+import time
+from datetime import datetime
+from typing import List, Dict, Optional
+import re
+
+# 尝试导入 snscrape
+try:
+    import snscrape.modules.twitter as sntwitter
+    HAS_SNS = True
+except ImportError:
+    HAS_SNS = False
+    print("⚠️  未安装 snscrape，请运行：pip install snscrape")
+
+# 添加路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+
+# 目标博主列表
+BLOGGERS = [
+    {"username": "Hoyooyoo", "priority": "P0", "lang": "zh", "focus": "price_action"},
+    {"username": "KillaXBT", "priority": "P0", "lang": "en", "focus": "price_action"},
+    {"username": "Will_Yang_", "priority": "P1", "lang": "zh", "focus": "wyckoff"},
+    {"username": "yekoikoi", "priority": "P1", "lang": "zh", "focus": "volume_price"},
+    {"username": "0xtongcan", "priority": "P1", "lang": "zh", "focus": "naked_k"},
+    {"username": "WallStreet0Name", "priority": "P1", "lang": "zh", "focus": "naked_k"},
+    {"username": "CycleStudies", "priority": "P2", "lang": "zh", "focus": "trend_line"},
+    {"username": "Mingarithm", "priority": "P2", "lang": "en", "focus": "pattern"},
+    {"username": "Jingxin147741", "priority": "P2", "lang": "zh", "focus": "naked_k"},
+    {"username": "PAVLeader", "priority": "P3", "lang": "en", "focus": "smart_money"},
+]
+
+# A 股/港股/美股代码正则
+SYMBOL_PATTERNS = [
+    r'(\d{6}\.ss)',      # 沪市
+    r'(\d{6}\.sz)',      # 深市
+    r'(\d{6})',          # A 股代码
+    r'(\d{5}\.hk)',      # 港股
+    r'(\$[A-Z]{1,5})',   # 美股 $AAPL
+    r'([A-Z]{1,5})',     # 美股代码
+]
+
+def extract_symbols(text: str) -> List[str]:
+    """从推文文本中提取股票代码"""
+    symbols = []
+    
+    # 中文股票名映射表（简化版）
+    name_to_symbol = {
+        '贵州茅台': '600519.ss', '茅台': '600519.ss',
+        '宁德时代': '300750.sz', '宁德': '300750.sz',
+        '比亚迪': '002594.sz',
+        '五粮液': '000858.sz',
+        '中国中免': '601888.ss',
+        '重庆啤酒': '600132.ss',
+        '三花智控': '002050.sz',
+        '卧龙电驱': '600580.ss',
+        '山子高科': '000981.sz',
+        '华虹半导体': '01347.hk',
+        '特斯拉': 'TSLA', 'TSLA': 'TSLA',
+        '苹果': 'AAPL', 'AAPL': 'AAPL',
+        '英伟达': 'NVDA', 'NVDA': 'NVDA',
+    }
+    
+    # 查找股票名
+    for name, symbol in name_to_symbol.items():
+        if name in text:
+            symbols.append(symbol)
+    
+    # 查找代码模式
+    for pattern in SYMBOL_PATTERNS:
+        matches = re.findall(pattern, text)
+        for match in matches:
+            if match.isdigit() and len(match) == 6:
+                # A 股，需要判断 sh/sz
+                if match.startswith('6'):
+                    symbols.append(f"{match}.ss")
+                else:
+                    symbols.append(f"{match}.sz")
+            elif match not in symbols:
+                symbols.append(match)
+    
+    return list(set(symbols))
+
+def analyze_sentiment(text: str) -> str:
+    """分析推文情感（做多/做空/中性）"""
+    text_lower = text.lower()
+    
+    bullish_keywords = ['多', '涨', '买', '突破', '向上', 'bullish', 'long', 'buy', '做多', '看涨']
+    bearish_keywords = ['空', '跌', '卖', '跌破', '向下', 'bearish', 'short', 'sell', '做空', '看跌']
+    
+    bull_score = sum(1 for kw in bullish_keywords if kw in text_lower)
+    bear_score = sum(1 for kw in bearish_keywords if kw in text_lower)
+    
+    if bull_score > bear_score:
+        return "bullish"
+    elif bear_score > bull_score:
+        return "bearish"
+    else:
+        return "neutral"
+
+def extract_analysis_type(text: str) -> str:
+    """分析推文类型"""
+    text_lower = text.lower()
+    
+    if any(kw in text_lower for kw in ['裸 k', 'naked k', '纯 k', 'k 线']):
+        return "naked_k"
+    elif any(kw in text_lower for kw in ['价格行为', 'price action', 'pa']):
+        return "price_action"
+    elif any(kw in text_lower for kw in ['威科夫', 'wyckoff', '量价']):
+        return "wyckoff"
+    elif any(kw in text_lower for kw in ['波浪', 'elliott', 'ew']):
+        return "elliott_wave"
+    elif any(kw in text_lower for kw in ['缠论', 'chan']):
+        return "chan_theory"
+    elif any(kw in text_lower for kw in ['支撑', '压力', 'support', 'resistance']):
+        return "support_resistance"
+    else:
+        return "general_ta"
+
+def collect_tweets(username: str, limit: int = 500, since_date: Optional[str] = None) -> List[Dict]:
+    """
+    收集用户推文
+    
+    Args:
+        username: Twitter 用户名（不含@）
+        limit: 最大收集数量
+        since_date: 起始日期（YYYY-MM-DD）
+    """
+    if not HAS_SNS:
+        print(f"❌ snscrape 未安装，跳过 {username}")
+        return []
+    
+    print(f"📥 正在收集 @{username} 的推文...")
+    
+    tweets = []
+    try:
+        # 构建查询
+        query = f"from:{username}"
+        if since_date:
+            query += f" since:{since_date}"
+        
+        scraper = sntwitter.TwitterSearchScraper(query)
+        
+        for i, tweet in enumerate(scraper.get_items()):
+            if i >= limit:
+                break
+            
+            # 跳过转推
+            if tweet.retweetedTweet:
+                continue
+            
+            # 提取信息
+            tweet_data = {
+                "tweet_id": str(tweet.id),
+                "timestamp": tweet.date.isoformat(),
+                "username": username,
+                "content": tweet.content,
+                "likes": tweet.likeCount,
+                "retweets": tweet.retweetCount,
+                "replies": tweet.replyCount,
+                "symbols": extract_symbols(tweet.content),
+                "sentiment": analyze_sentiment(tweet.content),
+                "analysis_type": extract_analysis_type(tweet.content),
+            }
+            
+            # 只保留有股票提及的推文（用于回测）
+            if tweet_data["symbols"]:
+                tweets.append(tweet_data)
+            
+            # 进度
+            if (i + 1) % 100 == 0:
+                print(f"  已处理 {i + 1}/{limit} 条推文，找到 {len(tweets)} 条含股票")
+        
+        print(f"✅ @{username}: 收集完成，共 {len(tweets)} 条含股票的推文")
+        
+    except Exception as e:
+        print(f"❌ @{username} 收集失败：{e}")
+    
+    return tweets
+
+def save_tweets(tweets: List[Dict], username: str, output_dir: str = "data/twitter"):
+    """保存推文到 JSONL 文件"""
+    os.makedirs(output_dir, exist_ok=True)
+    
+    output_file = os.path.join(output_dir, f"{username}.jsonl")
+    
+    # 读取已有数据（去重）
+    existing_ids = set()
+    if os.path.exists(output_file):
+        with open(output_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                data = json.loads(line)
+                existing_ids.add(data.get('tweet_id'))
+    
+    # 追加新数据
+    new_count = 0
+    with open(output_file, 'a', encoding='utf-8') as f:
+        for tweet in tweets:
+            if tweet['tweet_id'] not in existing_ids:
+                f.write(json.dumps(tweet, ensure_ascii=False) + '\n')
+                new_count += 1
+    
+    print(f"💾 保存 {new_count} 条新推文到 {output_file}")
+
+def export_for_backtest(input_dir: str = "data/twitter", output_file: str = "strategy/twitter_recommendations.json"):
+    """导出为回测格式"""
+    recommendations = []
+    
+    for filename in os.listdir(input_dir):
+        if not filename.endswith('.jsonl'):
+            continue
+        
+        filepath = os.path.join(input_dir, filename)
+        with open(filepath, 'r', encoding='utf-8') as f:
+            for line in f:
+                tweet = json.loads(line)
+                
+                for symbol in tweet['symbols']:
+                    rec = {
+                        "symbol": symbol,
+                        "date": tweet['timestamp'][:10],  # YYYY-MM-DD
+                        "blogger": f"@{tweet['username']}",
+                        "note": tweet['content'][:100],  # 截取前 100 字
+                        "sentiment": tweet['sentiment'],
+                        "tweet_id": tweet['tweet_id'],
+                    }
+                    recommendations.append(rec)
+    
+    # 按日期排序
+    recommendations.sort(key=lambda x: x['date'])
+    
+    # 保存
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(recommendations, f, ensure_ascii=False, indent=2)
+    
+    print(f"📊 导出 {len(recommendations)} 条荐股记录到 {output_file}")
+    return recommendations
+
+def main():
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Twitter 博主数据蒸馏器')
+    parser.add_argument('--user', type=str, help='单个用户名（不含@）')
+    parser.add_argument('--all', action='store_true', help='收集所有博主')
+    parser.add_argument('--limit', type=int, default=500, help='每个博主最大收集数')
+    parser.add_argument('--since', type=str, help='起始日期（YYYY-MM-DD）')
+    parser.add_argument('--export', action='store_true', help='导出为回测格式')
+    
+    args = parser.parse_args()
+    
+    if args.all:
+        # 收集所有博主
+        for blogger in BLOGGERS:
+            print(f"\n{'='*60}")
+            print(f"处理：@{blogger['username']} (优先级：{blogger['priority']})")
+            print(f"{'='*60}")
+            
+            tweets = collect_tweets(
+                blogger['username'],
+                limit=args.limit,
+                since_date=args.since
+            )
+            
+            if tweets:
+                save_tweets(tweets, blogger['username'])
+            
+            # 速率限制
+            time.sleep(5)
+    
+    elif args.user:
+        # 收集单个博主
+        tweets = collect_tweets(args.user, limit=args.limit, since_date=args.since)
+        if tweets:
+            save_tweets(tweets, args.user)
+    
+    if args.export:
+        export_for_backtest()
+
+if __name__ == "__main__":
+    main()
