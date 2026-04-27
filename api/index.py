@@ -54,42 +54,33 @@ async def analyze_stock(symbol: str = Query(..., description="Stock symbol (e.g.
 
 
 def fetch_stock_data(symbol: str) -> pd.DataFrame:
-    """从 Yahoo Finance 获取 A 股真实数据 (Vercel 海外可访问)"""
+    """获取 A 股数据 — 多种数据源尝试"""
+    clean = symbol.replace('.SS', '').replace('.SZ', '').replace('.ss', '').replace('.sz', '').upper()
+    
+    # 尝试 yfinance（Vercel 海外）
     try:
-        clean = symbol.replace('.SS', '').replace('.SZ', '').replace('.ss', '').replace('.sz', '').upper()
-        # Yahoo Finance A 股格式: 600519.SS (上海) / 000001.SZ (深圳)
-        if clean.startswith('6') or clean.startswith('9') or clean.startswith('68'):
-            yf_symbol = f"{clean}.SS"
-        else:
-            yf_symbol = f"{clean}.SZ"
-        
-        # 使用 yfinance
         import yfinance as yf
-        ticker = yf.Ticker(yf_symbol)
-        df = ticker.history(period="1y")
-        
-        if len(df) < 60:
-            print(f"yfinance 数据不足: {yf_symbol} -> {len(df)} rows")
-            # 尝试另一格式
-            if clean.startswith('6'):
-                yf_symbol = f"{clean}.SZ"
-            else:
-                yf_symbol = f"{clean}.SS"
-            ticker = yf.Ticker(yf_symbol)
-            df = ticker.history(period="1y")
-        
-        if len(df) < 60:
-            return None
-        
-        df = df.rename(columns={
-            'Open': 'Open', 'Close': 'Close', 
-            'High': 'High', 'Low': 'Low', 'Volume': 'Volume'
-        })
-        return df[['Open', 'Close', 'High', 'Low', 'Volume']]
-        
+        for sfx in ['.SS', '.SZ']:
+            try:
+                df = yf.Ticker(f"{clean}{sfx}").history(period="1y")
+                if len(df) >= 60:
+                    return df[['Open', 'Close', 'High', 'Low', 'Volume']]
+            except:
+                continue
+        # yfinance 连不上时可能有缓存问题
+        import time
+        time.sleep(1)
+        for sfx in ['.SS', '.SZ']:
+            try:
+                df = yf.Ticker(f"{clean}{sfx}").history(period="max")
+                if len(df) >= 60:
+                    return df[['Open', 'Close', 'High', 'Low', 'Volume']]
+            except:
+                continue
     except Exception as e:
-        print(f"Error fetching {symbol}: {type(e).__name__}: {e}")
-        return None
+        print(f"yfinance 失败: {e}")
+    
+    return None
 
 
 def analyze_stock_data(symbol: str, df: pd.DataFrame) -> dict:
