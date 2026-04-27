@@ -6,7 +6,7 @@ FastAPI 后端 - PriceAction Pro Vercel 版
 """
 import sys, os
 # 确保能找到同目录模块
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -15,7 +15,7 @@ from typing import Optional
 from datetime import datetime
 import hashlib
 
-from vercel_adapter import adapter, get_signals
+from api import adapter, get_signals
 
 app = FastAPI(title="PriceAction Pro API - Vercel")
 

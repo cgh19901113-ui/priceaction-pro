@@ -1,0 +1,9 @@
+# 排除大文件/不相关目录
+.git
+.gitignore
+skills
+data
+docs
+*.sh
+*.bat
+*.md

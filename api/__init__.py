@@ -1,13 +1,12 @@
 """
 Vercel 适配器 - 无状态架构
-数据源: 腾讯财经真实数据
+数据源: Yahoo Finance 直接 API（全球可访问）
 分析输出: 标准化信号格式
 定价: 延迟信号免费 / 实时信号付费
 """
 import os, json, random, hashlib, hmac, base64
 from datetime import datetime, date, timedelta
 from typing import Optional, Dict, List
-import requests
 
 # ========== 信号记录（公开） ==========
 SIGNAL_LOG: List[Dict] = []  # 内存记录，Vercel 每次冷启动重置
@@ -16,9 +15,8 @@ def add_signal(signal: dict):
     """添加信号到公开记录"""
     signal["id"] = hashlib.md5(f"{signal['symbol']}{signal['timestamp']}".encode()).hexdigest()[:8]
     signal["timestamp"] = datetime.now().isoformat()
-    signal["result"] = "待验证"  # 初始状态
+    signal["result"] = "待验证"
     SIGNAL_LOG.append(signal)
-    # 只保留最近 200 条
     if len(SIGNAL_LOG) > 200:
         SIGNAL_LOG.pop(0)
 
@@ -29,89 +27,88 @@ def get_signals(limit: int = 50) -> List[Dict]:
 # ========== 数据源 ==========
 def get_stock_data(symbol: str) -> Optional[List[Dict]]:
     """
-    从腾讯财经获取 A 股真实数据
+    从 Yahoo Finance 直接 API 获取 A 股数据（全球可访问）
     返回: [{date, open, high, low, close, volume}, ...]
     """
     try:
-        # 转换代码格式
+        import requests
+
         if symbol.startswith('6') or symbol.startswith('9'):
-            code = f"sh{symbol}"
+            yahoo_symbol = f"{symbol}.SS"
         else:
-            code = f"sz{symbol}"
-        
-        url = f"http://web.ifzq.gtimg.cn/appstock/app/minute/query?code={code}"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        resp = requests.get(url, headers=headers, timeout=10)
-        
+            yahoo_symbol = f"{symbol}.SZ"
+
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yahoo_symbol}"
+        params = {"range": "1y", "interval": "1d", "includePrePost": "false"}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+
+        resp = requests.get(url, params=params, headers=headers, timeout=15)
+
         if resp.status_code != 200:
+            print(f"Yahoo API 返回 {resp.status_code} for {yahoo_symbol}")
             return None
-        
+
         data = resp.json()
-        if data.get("code") != 0:
+        result_data = data.get("chart", {}).get("result", [])
+        if not result_data:
+            print(f"Yahoo API 无数据 for {yahoo_symbol}")
             return None
-        
-        # 解析日线
-        days_data = data.get("data", {}).get(code, {}).get("qt", {}).get(code, {}).get("days", [])
-        if not days_data:
-            # 尝试其他格式
-            days_data = data.get("data", {}).get(code, {}).get("day", [])
-        
-        if not days_data or len(days_data) < 30:
+
+        timestamps = result_data[0].get("timestamp", [])
+        quotes = result_data[0].get("indicators", {}).get("quote", [{}])[0]
+        opens = quotes.get("open", [])
+        highs = quotes.get("high", [])
+        lows = quotes.get("low", [])
+        closes = quotes.get("close", [])
+        volumes = quotes.get("volume", [])
+
+        if not timestamps or len(timestamps) < 60:
+            print(f"数据不足 {symbol}: 仅 {len(timestamps)} 条")
             return None
-        
+
         result = []
-        for d in days_data[-120:]:  # 最近 120 天
-            try:
-                parts = d.split(" ")
-                if len(parts) >= 5:
-                    result.append({
-                        "date": parts[0],
-                        "open": float(parts[1]),
-                        "high": float(parts[2]),
-                        "low": float(parts[3]),
-                        "close": float(parts[4]),
-                        "volume": float(parts[5]) if len(parts) > 5 else 0,
-                    })
-            except:
+        for i in range(len(timestamps)):
+            if closes[i] is None or opens[i] is None:
                 continue
-        
-        return result if len(result) >= 20 else None
+            dt = datetime.fromtimestamp(timestamps[i])
+            result.append({
+                "date": dt.strftime("%Y-%m-%d"),
+                "open": round(float(opens[i]), 2),
+                "high": round(float(highs[i]), 2),
+                "low": round(float(lows[i]), 2),
+                "close": round(float(closes[i]), 2),
+                "volume": int(volumes[i]) if volumes[i] else 0,
+            })
+
+        print(f"Yahoo Finance 获取 {symbol} ({yahoo_symbol}): {len(result)} 条")
+        return result
     except Exception as e:
         print(f"数据获取失败 {symbol}: {e}")
         return None
 
 # ========== 信号分析引擎 ==========
 def analyze_price_action(df: List[Dict]) -> Dict:
-    """
-    裸 K 价格行为分析
-    返回标准化信号
-    """
+    """裸 K 价格行为分析 - 返回标准化信号"""
     if not df or len(df) < 20:
         return {"error": "数据不足，至少需要 20 个交易日"}
-    
+
     closes = [d["close"] for d in df]
     highs = [d["high"] for d in df]
     lows = [d["low"] for d in df]
     volumes = [d["volume"] for d in df]
-    
-    latest = df[-1]
-    prev = df[-2]
-    
-    current_price = latest["close"]
+
+    current_price = closes[-1]
     change_pct = (closes[-1] - closes[-2]) / closes[-2] * 100
-    
+
     # ===== 结构判断 =====
-    # 趋势判断：最近 20 日高低点
     recent_high = max(highs[-20:])
     recent_low = min(lows[-20:])
     mid_price = (recent_high + recent_low) / 2
-    
-    # 均线
+
     ma5 = sum(closes[-5:]) / 5
     ma10 = sum(closes[-10:]) / 10
     ma20 = sum(closes[-20:]) / 20
-    
-    # 结构分类
+
     if current_price > ma5 > ma10 > ma20 and current_price > mid_price:
         structure = "上升趋势"
     elif current_price < ma5 < ma10 < ma20 and current_price < mid_price:
@@ -122,13 +119,8 @@ def analyze_price_action(df: List[Dict]) -> Dict:
         structure = "偏多震荡"
     else:
         structure = "偏空震荡"
-    
+
     # ===== 方向判断 =====
-    # K 线形态：最近 3 根
-    last3_high = max(highs[-3:])
-    last3_low = min(lows[-3:])
-    
-    # 突破判断
     if closes[-1] > max(highs[-6:-1]) and volumes[-1] > sum(volumes[-6:-1]) / 5 * 1.5:
         direction = "做多"
         entry_condition = f"突破 {max(highs[-6:-1]):.2f} 放量确认"
@@ -154,14 +146,14 @@ def analyze_price_action(df: List[Dict]) -> Dict:
         entry_condition = f"突破 {recent_high:.2f} 或 回踩 {recent_low:.2f}"
         invalidate = "无明确方向"
         confidence = "低"
-    
+
     # ===== 量能确认 =====
     avg_vol = sum(volumes[-10:]) / 10
     vol_ratio = volumes[-1] / avg_vol if avg_vol > 0 else 1
     volume_signal = "放量" if vol_ratio > 1.3 else ("缩量" if vol_ratio < 0.7 else "平量")
-    
+
     # ===== 置信度评分 =====
-    score = 50  # 基础分
+    score = 50
     if structure in ("上升趋势", "偏多震荡"):
         score += 15
     if direction == "做多" and volume_signal == "放量":
@@ -174,9 +166,8 @@ def analyze_price_action(df: List[Dict]) -> Dict:
         score += 15
     elif confidence == "中":
         score += 5
-    
     score = min(max(score, 0), 100)
-    
+
     return {
         "symbol": "",
         "current_price": round(current_price, 2),
@@ -199,72 +190,52 @@ def analyze_price_action(df: List[Dict]) -> Dict:
 
 class VercelAdapter:
     """Vercel 无状态适配器"""
-    
-    FREE_DAILY = 1      # 每日免费延迟信号
-    SIGNAL_DELAY = 24   # 免费版延迟小时数
-    
+    FREE_DAILY = 1
+    SIGNAL_DELAY = 24
+
     def __init__(self):
         self.db = {"users": {}, "analyses": []}
-    
+
     def get_user(self, ip_hash: str) -> dict:
-        """获取用户（内存）"""
         today = date.today().isoformat()
         user = self.db["users"].get(ip_hash, {
-            "ip_hash": ip_hash,
-            "is_premium": False,
-            "free_used_today": 0,
-            "free_date": today,
-            "total_analyses": 0,
+            "ip_hash": ip_hash, "is_premium": False,
+            "free_used_today": 0, "free_date": today, "total_analyses": 0,
         })
-        # 每日重置
         if user.get("free_date") != today:
             user["free_used_today"] = 0
             user["free_date"] = today
         return user
-    
+
     def update_user(self, ip_hash: str, data: dict):
         self.db["users"][ip_hash] = data
-    
+
     def can_get_free_analysis(self, ip_hash: str) -> bool:
-        """检查是否还有免费额度"""
-        user = self.get_user(ip_hash)
-        return user["free_used_today"] < self.FREE_DAILY
-    
+        return self.get_user(ip_hash)["free_used_today"] < self.FREE_DAILY
+
     def use_free_analysis(self, ip_hash: str):
-        """消耗一次免费额度"""
         user = self.get_user(ip_hash)
         user["free_used_today"] += 1
         user["total_analyses"] += 1
         self.update_user(ip_hash, user)
-    
+
     def analyze_stock(self, symbol: str, is_premium: bool = False) -> Dict:
-        """
-        分析股票
-        is_premium=False → 延迟信号（免费）
-        is_premium=True  → 实时信号（付费）
-        """
-        # 获取真实数据
         df = get_stock_data(symbol)
         if not df:
             return {"error": "数据不足", "message": "无法获取该股票数据，请检查代码是否正确"}
-        
-        # 运行分析
+
         analysis = analyze_price_action(df)
         analysis["symbol"] = symbol
-        
         if "error" in analysis:
             return analysis
-        
-        # 免费版：延迟信号（隐藏实时入场/失效条件）
+
         if not is_premium:
-            analysis["entry_condition"] = f"🔒 实时入场条件仅对付费用户开放"
+            analysis["entry_condition"] = "🔒 实时入场条件仅对付费用户开放"
             analysis["invalidate_condition"] = "🔒 升级后可查看"
-            analysis["confidence"] = analysis.get("confidence", "低")
             analysis["data_source"] = f"延迟信号（D-{self.SIGNAL_DELAY}h）"
         else:
             analysis["data_source"] = "实时信号"
-        
-        # 记录信号（公开）
+
         add_signal({
             "symbol": symbol,
             "direction": analysis.get("direction", "观望"),
@@ -273,7 +244,6 @@ class VercelAdapter:
             "price": analysis.get("current_price", 0),
             "is_premium": is_premium,
         })
-        
         return analysis
 
 adapter = VercelAdapter()
