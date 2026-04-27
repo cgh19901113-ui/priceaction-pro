@@ -5,7 +5,8 @@ FastAPI 后端 - PriceAction Pro Vercel 版
 - 公开信号记录
 """
 import sys, os
-# 确保能找到同目录模块
+# 确保能找到 backend 目录
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,7 +19,7 @@ import traceback
 import sys
 
 try:
-    from api import adapter, get_signals
+    from vercel_adapter import adapter, get_signals
     print("✅ api 模块导入成功", file=sys.stderr)
 except Exception as e:
     print(f"❌ api 模块导入失败: {e}", file=sys.stderr)
