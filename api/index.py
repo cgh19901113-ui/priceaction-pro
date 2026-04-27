@@ -54,48 +54,37 @@ async def analyze_stock(symbol: str = Query(..., description="Stock symbol (e.g.
 
 
 def fetch_stock_data(symbol: str) -> pd.DataFrame:
-    """从腾讯财经获取 A 股数据"""
+    """从 Yahoo Finance 获取 A 股真实数据 (Vercel 海外可访问)"""
     try:
-        # 转换代码格式
-        clean = symbol.replace('.SS', '').replace('.SZ', '').replace('.ss', '').replace('.sz', '')
-        if clean.startswith('6'):
-            code = f"sh{clean}"
+        clean = symbol.replace('.SS', '').replace('.SZ', '').replace('.ss', '').replace('.sz', '').upper()
+        # Yahoo Finance A 股格式: 600519.SS (上海) / 000001.SZ (深圳)
+        if clean.startswith('6') or clean.startswith('9') or clean.startswith('68'):
+            yf_symbol = f"{clean}.SS"
         else:
-            code = f"sz{clean}"
+            yf_symbol = f"{clean}.SZ"
         
-        # 腾讯财经日线数据 API
-        url = f"http://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={code},day,,,320,qfq"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        resp = requests.get(url, headers=headers, timeout=10)
+        # 使用 yfinance
+        import yfinance as yf
+        ticker = yf.Ticker(yf_symbol)
+        df = ticker.history(period="1y")
         
-        if resp.status_code != 200:
-            return None
+        if len(df) < 60:
+            print(f"yfinance 数据不足: {yf_symbol} -> {len(df)} rows")
+            # 尝试另一格式
+            if clean.startswith('6'):
+                yf_symbol = f"{clean}.SZ"
+            else:
+                yf_symbol = f"{clean}.SS"
+            ticker = yf.Ticker(yf_symbol)
+            df = ticker.history(period="1y")
         
-        data = resp.json()
-        days = data.get("data", {}).get(code, {}).get("day", [])
-        if not days or len(days) < 60:
-            return None
-        
-        rows = []
-        for d in days[-250:]:
-            try:
-                # 格式: ["2026-01-01", open, close, high, low, volume]
-                rows.append({
-                    "Date": pd.Timestamp(d[0]),
-                    "Open": float(d[1]),
-                    "Close": float(d[2]),
-                    "High": float(d[3]),
-                    "Low": float(d[4]),
-                    "Volume": float(d[5]) if len(d) > 5 else 0,
-                })
-            except:
-                continue
-        
-        df = pd.DataFrame(rows)
         if len(df) < 60:
             return None
         
-        df = df.set_index("Date")
+        df = df.rename(columns={
+            'Open': 'Open', 'Close': 'Close', 
+            'High': 'High', 'Low': 'Low', 'Volume': 'Volume'
+        })
         return df[['Open', 'Close', 'High', 'Low', 'Volume']]
         
     except Exception as e:
