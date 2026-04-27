@@ -83,7 +83,9 @@ def get_stock_data(symbol: str) -> Optional[List[Dict]]:
         print(f"Yahoo Finance 获取 {symbol} ({yahoo_symbol}): {len(result)} 条")
         return result
     except Exception as e:
+        import traceback
         print(f"数据获取失败 {symbol}: {e}")
+        traceback.print_exc()
         return None
 
 # ========== 信号分析引擎 ==========

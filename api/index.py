@@ -14,8 +14,16 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 import hashlib
+import traceback
+import sys
 
-from api import adapter, get_signals
+try:
+    from api import adapter, get_signals
+    print("✅ api 模块导入成功", file=sys.stderr)
+except Exception as e:
+    print(f"❌ api 模块导入失败: {e}", file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
+    raise
 
 app = FastAPI(title="PriceAction Pro API - Vercel")
 
@@ -56,45 +64,51 @@ def health():
 @app.post("/api/analyze")
 async def analyze(request: Request, req: AnalyzeRequest):
     """分析股票（免费：延迟信号 / 付费：实时信号）"""
-    symbol = req.symbol.strip()
-    
-    # 验证股票代码
-    clean = symbol.replace(".ss", "").replace(".sz", "").replace(".SH", "").replace(".SZ", "")
-    if not clean or len(clean) < 6 or not clean[:6].isdigit():
-        raise HTTPException(status_code=400, detail="无效的股票代码，请输入6位数字")
-    
-    symbol_clean = clean[:6]
-    
-    ip = get_client_ip(request)
-    ip_hash = hash_ip(ip)
-    
-    # 免费额度检查
-    if adapter.can_get_free_analysis(ip_hash):
-        # 使用免费额度 → 延迟信号
-        result = adapter.analyze_stock(symbol_clean, is_premium=False)
-        adapter.use_free_analysis(ip_hash)
+    try:
+        symbol = req.symbol.strip()
         
-        if "error" in result:
-            if result.get("error") == "PREMIUM_ONLY":
+        # 验证股票代码
+        clean = symbol.replace(".ss", "").replace(".sz", "").replace(".SH", "").replace(".SZ", "")
+        if not clean or len(clean) < 6 or not clean[:6].isdigit():
+            raise HTTPException(status_code=400, detail="无效的股票代码，请输入6位数字")
+        
+        symbol_clean = clean[:6]
+        
+        ip = get_client_ip(request)
+        ip_hash = hash_ip(ip)
+        
+        # 免费额度检查
+        if adapter.can_get_free_analysis(ip_hash):
+            # 使用免费额度 → 延迟信号
+            result = adapter.analyze_stock(symbol_clean, is_premium=False)
+            adapter.use_free_analysis(ip_hash)
+            
+            if "error" in result:
+                if result.get("error") == "PREMIUM_ONLY":
+                    return result
                 return result
+            
+            user = adapter.get_user(ip_hash)
+            result["remaining_free"] = max(0, adapter.FREE_DAILY - user["free_used_today"])
+            result["is_premium"] = False
             return result
-        
-        user = adapter.get_user(ip_hash)
-        result["remaining_free"] = max(0, adapter.FREE_DAILY - user["free_used_today"])
-        result["is_premium"] = False
-        return result
-    else:
-        # 免费额度用尽 → 返回付费引导
-        return {
-            "error": "FREE_LIMIT",
-            "message": f"今日免费额度已用完（每日{adapter.FREE_DAILY}次）",
-            "upgrade": {
-                "plan": "实时信号",
-                "price": "$30/月",
-                "features": ["无限实时信号", "完整入场/失效条件", "优先推送"],
-            },
-            "is_premium": False,
-        }
+        else:
+            # 免费额度用尽 → 返回付费引导
+            return {
+                "error": "FREE_LIMIT",
+                "message": f"今日免费额度已用完（每日{adapter.FREE_DAILY}次）",
+                "upgrade": {
+                    "plan": "实时信号",
+                    "price": "$30/月",
+                    "features": ["无限实时信号", "完整入场/失效条件", "优先推送"],
+                },
+                "is_premium": False,
+            }
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse({"error": "服务器内部错误", "detail": str(e)}, status_code=500)
 
 @app.get("/api/signals")
 def get_public_signals(limit: int = 50):
