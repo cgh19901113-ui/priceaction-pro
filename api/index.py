@@ -59,7 +59,30 @@ def root():
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+    return {"status": "ok", "timestamp": datetime.now().isoformat(), "version": "2.0.0"}
+
+@app.get("/api/debug/yahoo/{symbol}")
+async def debug_yahoo(symbol: str):
+    """测试 Yahoo Finance 数据获取（调试用）"""
+    import time
+    start = time.time()
+    try:
+        from api import get_stock_data
+        data = get_stock_data(symbol)
+        elapsed = time.time() - start
+        if data:
+            return {
+                "success": True,
+                "symbol": symbol,
+                "count": len(data),
+                "latest_price": data[-1]["close"],
+                "elapsed": round(elapsed, 2),
+            }
+        else:
+            return {"success": False, "symbol": symbol, "elapsed": round(elapsed, 2), "error": "无数据"}
+    except Exception as e:
+        elapsed = time.time() - start
+        return {"success": False, "symbol": symbol, "elapsed": round(elapsed, 2), "error": str(e)}
 
 @app.post("/api/analyze")
 async def analyze(request: Request, req: AnalyzeRequest):
