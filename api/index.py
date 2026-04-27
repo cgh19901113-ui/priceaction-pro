@@ -10,8 +10,8 @@ from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import numpy as np
-from datetime import datetime
-import yfinance as yf
+from datetime import datetime, timedelta
+import requests
 
 app = FastAPI(title="PriceAction Pro API")
 
@@ -54,68 +54,48 @@ async def analyze_stock(symbol: str = Query(..., description="Stock symbol (e.g.
 
 
 def fetch_stock_data(symbol: str) -> pd.DataFrame:
-    """Fetch stock data from Yahoo Finance (Vercel 可访问)"""
+    """从腾讯财经获取 A 股数据"""
     try:
-        # Normalize symbol
-        symbol = symbol.upper().replace('.', '')
-        
-        # Convert to Yahoo Finance format
-        # 600519 -> 600519.SS (Shanghai)
-        # 000001 -> 000001.SZ (Shenzhen)
-        if symbol.startswith('6'):
-            yf_symbol = f"{symbol}.SS"
-        elif symbol.startswith('0') or symbol.startswith('3'):
-            yf_symbol = f"{symbol}.SZ"
+        # 转换代码格式
+        clean = symbol.replace('.SS', '').replace('.SZ', '').replace('.ss', '').replace('.sz', '')
+        if clean.startswith('6'):
+            code = f"sh{clean}"
         else:
-            yf_symbol = f"{symbol}.SS"  # Default to Shanghai
+            code = f"sz{clean}"
         
-        print(f"Fetching data for {yf_symbol}...")
+        # 腾讯财经日线数据 API
+        url = f"http://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={code},day,,,320,qfq"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        resp = requests.get(url, headers=headers, timeout=10)
         
-        # Fetch data from Yahoo Finance
-        ticker = yf.Ticker(yf_symbol)
-        df = ticker.history(period="1y")
-        
-        if len(df) == 0:
-            print(f"No data for {yf_symbol}")
+        if resp.status_code != 200:
             return None
         
-        # Rename columns to match expected format
-        df = df.rename(columns={
-            'Open': 'Open',
-            'High': 'High',
-            'Low': 'Low',
-            'Close': 'Close',
-            'Volume': 'Volume'
-        })
-        
-        print(f"Fetched {len(df)} rows")
-        
-        return df[['Open', 'Close', 'High', 'Low', 'Volume']]
-        
-        # Logout
-        bs.logout()
-        
-        if len(df) == 0:
-            print("No data returned")
+        data = resp.json()
+        days = data.get("data", {}).get(code, {}).get("day", [])
+        if not days or len(days) < 60:
             return None
         
-        print(f"Fetched {len(df)} rows")
+        rows = []
+        for d in days[-250:]:
+            try:
+                # 格式: ["2026-01-01", open, close, high, low, volume]
+                rows.append({
+                    "Date": pd.Timestamp(d[0]),
+                    "Open": float(d[1]),
+                    "Close": float(d[2]),
+                    "High": float(d[3]),
+                    "Low": float(d[4]),
+                    "Volume": float(d[5]) if len(d) > 5 else 0,
+                })
+            except:
+                continue
         
-        # Process data
-        df = df.set_index('date')
-        df.index = pd.to_datetime(df.index)
-        for col in ['open', 'high', 'low', 'close', 'volume']:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+        df = pd.DataFrame(rows)
+        if len(df) < 60:
+            return None
         
-        # Rename columns to match expected format
-        df = df.rename(columns={
-            'open': 'Open',
-            'high': 'High',
-            'low': 'Low',
-            'close': 'Close',
-            'volume': 'Volume'
-        })
-        
+        df = df.set_index("Date")
         return df[['Open', 'Close', 'High', 'Low', 'Volume']]
         
     except Exception as e:
